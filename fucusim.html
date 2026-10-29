@@ -1,0 +1,1713 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>[hidden]{display:none!important}body{margin:0}img{max-width:100%}:root{color-scheme:light}</style>
+<title>Funduino Cube Simulator</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: links der Cube von oben mit Reglern für die Sensoren, rechts die Arduino-IDE, Lernhilfen als Schublade */
+:root {
+  --bg: #e8eeec; --panel: #ffffff; --panel2: #f2f6f5; --ink: #14201e; --muted: #53655f; --line: #cbd7d4;
+  --accent: #00838c; --accent-ink: #ffffff; --accent-soft: #d5eceb; --bar: #00777f; --bar-ink: #ffffff;
+  --ok: #1b7f45; --warn: #a45f00; --bad: #c03a32; --pcb: #0f2a33; --pcb-edge: #1f4a58; --silk: #a8cfd0;
+  --code-bg: #fbfdfc; --code-ink: #16231f; --kw: #00747c; --fn: #87490a; --cn: #6a3fa0; --num: #a1336a; --str: #2a7539; --cm: #6f827d;
+  --gutter: #edf3f1; --gutter-ink: #7f9690; --sel: rgba(0, 131, 140, .22); --shadow: 0 10px 30px rgba(10, 30, 28, .18);
+  --ui: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, "Cascadia Mono", "SF Mono", Consolas, Menlo, "Liberation Mono", monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0b1211; --panel: #131c1b; --panel2: #1a2625; --ink: #e3eeea; --muted: #8ea49e; --line: #283a3a;
+  --accent: #38c2cb; --accent-ink: #04201f; --accent-soft: #163a3c; --bar: #0f5c63; --bar-ink: #f1fbfa;
+  --ok: #5cc888; --warn: #e0a248; --bad: #ff7d72; --pcb: #0a2027; --pcb-edge: #1d4955; --silk: #8fbfc1;
+  --code-bg: #0b1110; --code-ink: #d9e8e4; --kw: #52cfd6; --fn: #f0b15c; --cn: #c3a2f0; --num: #f08db9; --str: #8fd39a; --cm: #6a827c;
+  --gutter: #0f1817; --gutter-ink: #556e68; --sel: rgba(56, 194, 203, .28); --shadow: 0 10px 30px rgba(0, 0, 0, .5); color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #0b1211; --panel: #131c1b; --panel2: #1a2625; --ink: #e3eeea; --muted: #8ea49e; --line: #283a3a;
+  --accent: #38c2cb; --accent-ink: #04201f; --accent-soft: #163a3c; --bar: #0f5c63; --bar-ink: #f1fbfa;
+  --ok: #5cc888; --warn: #e0a248; --bad: #ff7d72; --pcb: #0a2027; --pcb-edge: #1d4955; --silk: #8fbfc1;
+  --code-bg: #0b1110; --code-ink: #d9e8e4; --kw: #52cfd6; --fn: #f0b15c; --cn: #c3a2f0; --num: #f08db9; --str: #8fd39a; --cm: #6a827c;
+  --gutter: #0f1817; --gutter-ink: #556e68; --sel: rgba(56, 194, 203, .28); --shadow: 0 10px 30px rgba(0, 0, 0, .5); color-scheme: dark; }
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font: 14px/1.5 var(--ui);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 12px 24px; }
+button, select, input, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.app { max-width: 1520px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
+.top { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; justify-content: space-between; }
+.brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.brand svg { width: 38px; height: 38px; flex: none; }
+.brand h1 { margin: 0; font-size: 20px; line-height: 1.15; letter-spacing: -.01em; text-wrap: balance; }
+.brand p { margin: 0; color: var(--muted); font-size: 12.5px; }
+.top-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.chip { border: 1px solid var(--line); background: var(--panel); border-radius: 999px; padding: 6px 14px; font-weight: 600; }
+.chip:hover, .chip[aria-expanded="true"] { background: var(--accent-soft); border-color: var(--accent); }
+.speed { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12.5px; }
+.speed select { border: 1px solid var(--line); background: var(--panel); border-radius: 8px; padding: 5px 8px; }
+
+.stage { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 6fr); gap: 14px; align-items: start; }
+@media (max-width: 980px) { .stage { grid-template-columns: minmax(0, 1fr); } }
+@media (min-width: 1500px) { body.drawer-open { padding-right: 460px; } }
+.cube-col { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.board-wrap { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 8px; }
+#board { display: block; width: 100%; height: auto; touch-action: manipulation; user-select: none; -webkit-user-select: none; }
+#board text { font-family: var(--ui); }
+.env { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 18px; }
+@media (max-width: 520px) { .env { grid-template-columns: minmax(0, 1fr); } }
+.env h2 { grid-column: 1 / -1; margin: 0; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.ctl { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.ctl label, .ctl .lab { display: flex; justify-content: space-between; gap: 8px; font-size: 12.5px; color: var(--muted); }
+.ctl output { font-variant-numeric: tabular-nums; color: var(--ink); font-weight: 600; }
+.ctl input[type=range] { width: 100%; accent-color: var(--accent); margin: 2px 0; }
+.ctl .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.btn2 { border: 1px solid var(--line); background: var(--panel2); border-radius: 8px; padding: 6px 12px; font-weight: 600; touch-action: none; user-select: none; }
+.btn2:hover, .btn2.on { background: var(--accent-soft); border-color: var(--accent); }
+.ctl .chk { display: flex; gap: 6px; align-items: center; font-size: 12.5px; color: var(--muted); }
+
+/* IDE */
+.ide { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--panel); display: flex; flex-direction: column; min-width: 0; box-shadow: 0 1px 0 var(--line); }
+.ide-bar { background: var(--bar); color: var(--bar-ink); display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 6px 8px; }
+.tb { display: inline-flex; align-items: center; gap: 6px; background: rgba(255, 255, 255, .12); color: inherit; border: 1px solid rgba(255, 255, 255, .22);
+  border-radius: 8px; padding: 5px 10px; font-weight: 600; font-size: 13px; }
+.tb:hover { background: rgba(255, 255, 255, .24); }
+.tb svg { width: 16px; height: 16px; flex: none; }
+.tb[disabled] { opacity: .5; cursor: default; }
+.ide-bar select { background: rgba(255, 255, 255, .12); color: inherit; border: 1px solid rgba(255, 255, 255, .22); border-radius: 8px; padding: 5px 8px; max-width: 200px; }
+.ide-bar select option { color: #111; }
+.ide-bar .sp { flex: 1; }
+.ide-tab { background: var(--panel2); border-bottom: 1px solid var(--line); padding: 0 8px; display: flex; }
+.ide-tab span { padding: 6px 12px; border: 1px solid var(--line); border-bottom: 0; border-radius: 8px 8px 0 0; background: var(--code-bg); font: 12.5px var(--mono); margin-top: 4px; }
+.editor { position: relative; height: clamp(300px, 46vh, 540px); background: var(--code-bg); display: flex; }
+.gutter { flex: none; width: 44px; background: var(--gutter); color: var(--gutter-ink); font: 13px/20px var(--mono); text-align: right; padding: 10px 8px 40px 0; overflow: hidden; user-select: none; }
+.gutter div { height: 20px; }
+.gutter .err { color: #fff; background: var(--bad); }
+.code-area { position: relative; flex: 1; min-width: 0; }
+#hl, #code { position: absolute; inset: 0; margin: 0; padding: 10px 12px 40px; border: 0; font: 13px/20px var(--mono); tab-size: 2; white-space: pre; overflow: auto; letter-spacing: 0; }
+#hl { pointer-events: none; color: var(--code-ink); overflow: hidden; }
+#code { background: transparent; color: transparent; caret-color: var(--code-ink); resize: none; outline: none; }
+#code::selection { background: var(--sel); color: transparent; }
+.k { color: var(--kw); font-weight: 600; } .f { color: var(--fn); } .c { color: var(--cn); } .n { color: var(--num); } .s { color: var(--str); } .m { color: var(--cm); font-style: italic; } .p { color: var(--cm); }
+.status { display: flex; justify-content: space-between; gap: 10px; padding: 4px 12px; background: var(--bar); color: var(--bar-ink); font-size: 12px; }
+.bottom { border-top: 1px solid var(--line); }
+.tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); background: var(--panel2); padding: 4px 6px 0; flex-wrap: wrap; }
+.tab { border: 1px solid transparent; border-bottom: 0; background: transparent; padding: 6px 12px; border-radius: 8px 8px 0 0; font-weight: 600; color: var(--muted); }
+.tab[aria-selected="true"] { background: var(--panel); border-color: var(--line); color: var(--ink); }
+.pane { height: 190px; overflow: auto; padding: 8px 12px; background: var(--panel); }
+.pane[hidden] { display: none; }
+.log { font: 12.5px/1.5 var(--mono); display: flex; flex-direction: column; gap: 4px; }
+.log div { padding-left: 8px; border-left: 3px solid var(--line); white-space: pre-wrap; overflow-wrap: anywhere; }
+.log .error { border-color: var(--bad); color: var(--bad); } .log .hint { border-color: var(--accent); } .log .tip { border-color: var(--warn); background: var(--panel2); } .log .ok { border-color: var(--ok); color: var(--ok); }
+.log .hint::before { content: "Tipp: "; font-weight: 700; color: var(--accent); } .log .tip::before { content: "Hilfe: "; font-weight: 700; color: var(--warn); }
+.mon { display: flex; flex-direction: column; height: 100%; gap: 6px; }
+.mon pre { flex: 1; margin: 0; overflow: auto; font: 12.5px/1.5 var(--mono); white-space: pre-wrap; background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; min-height: 0; }
+.mon .bar { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.mon input[type=text] { flex: 1; min-width: 120px; border: 1px solid var(--line); background: var(--panel2); border-radius: 8px; padding: 5px 8px; }
+.mon select, .mon .btn2 { padding: 5px 8px; border: 1px solid var(--line); background: var(--panel2); border-radius: 8px; }
+
+/* Schublade: Lernpfad, Spickzettel, Frage */
+.drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(450px, 100%); background: var(--panel); border-left: 1px solid var(--line);
+  box-shadow: var(--shadow); display: flex; flex-direction: column; z-index: 20; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+.drawer-head { display: flex; align-items: center; justify-content: space-between; padding: 8px 8px 0 10px; gap: 8px; }
+.drawer-head .tabs { flex: 1; border-bottom: 0; background: transparent; padding: 0; }
+.drawer-body { flex: 1; overflow: auto; padding: 14px 16px 24px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 12px; }
+.drawer-body[hidden] { display: none; }
+.drawer h2 { margin: 0; font-size: 17px; text-wrap: balance; } .drawer h3 { margin: 0; font-size: 14px; } .drawer p { margin: 0; }
+.x { border: 1px solid var(--line); background: var(--panel2); border-radius: 8px; width: 32px; height: 32px; font-size: 18px; line-height: 1; }
+.lessons { display: flex; flex-direction: column; gap: 6px; padding: 0; margin: 0; list-style: none; }
+.lessons button { width: 100%; text-align: left; display: flex; gap: 10px; align-items: center; border: 1px solid var(--line); background: var(--panel2); border-radius: 10px; padding: 8px 10px; }
+.lessons button:hover { border-color: var(--accent); }
+.lessons .nr { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: var(--accent-soft); font-weight: 700; flex: none; font-size: 12px; }
+.lessons .done .nr { background: var(--ok); color: #fff; }
+.lessons small { display: block; color: var(--muted); }
+.lesson-box { display: flex; flex-direction: column; gap: 10px; }
+.tag { display: inline-block; font: 12px var(--mono); background: var(--accent-soft); border-radius: 6px; padding: 1px 6px; }
+.pins { display: flex; flex-wrap: wrap; gap: 6px; }
+.task { display: flex; gap: 8px; align-items: flex-start; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel2); }
+.task .box { width: 20px; height: 20px; border: 2px solid var(--muted); border-radius: 6px; flex: none; margin-top: 1px; display: grid; place-items: center; font-size: 13px; line-height: 1; }
+.task.ok { border-color: var(--ok); } .task.ok .box { background: var(--ok); border-color: var(--ok); color: #fff; }
+.hintbox { border-left: 3px solid var(--warn); background: var(--panel2); padding: 8px 10px; border-radius: 0 8px 8px 0; }
+.btn { border: 1px solid var(--accent); background: var(--accent); color: var(--accent-ink); border-radius: 8px; padding: 6px 12px; font-weight: 600; }
+.btn.ghost { background: transparent; color: var(--ink); border-color: var(--line); }
+.btn:hover { filter: brightness(1.08); }
+.quiz .opt { display: block; width: 100%; text-align: left; margin-top: 6px; border: 1px solid var(--line); background: var(--panel2); border-radius: 8px; padding: 7px 10px; }
+.quiz .opt.right { border-color: var(--ok); background: color-mix(in srgb, var(--ok) 14%, var(--panel)); }
+.quiz .opt.wrong { border-color: var(--bad); background: color-mix(in srgb, var(--bad) 12%, var(--panel)); }
+pre.snip { margin: 0; padding: 8px 10px; background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px; font: 12.5px/1.5 var(--mono); overflow-x: auto; white-space: pre; }
+.cmd { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; display: flex; flex-direction: column; gap: 4px; background: var(--panel2); }
+.cmd code { font: 12.5px var(--mono); color: var(--kw); font-weight: 600; }
+.decide { border: 1px solid var(--accent); border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; background: var(--accent-soft); }
+.decide fieldset { border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.decide legend { font-weight: 700; padding: 0; margin-bottom: 2px; }
+.decide label { display: flex; gap: 8px; align-items: center; }
+.result { background: var(--panel); border-radius: 10px; padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; }
+.chat { display: flex; flex-direction: column; gap: 8px; }
+.msg { max-width: 92%; padding: 8px 11px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel2); white-space: pre-wrap; overflow-wrap: anywhere; }
+.msg.me { align-self: flex-end; background: var(--accent-soft); border-color: var(--accent); }
+.msg code { font: 12.5px var(--mono); background: var(--code-bg); padding: 0 4px; border-radius: 4px; }
+.askbar { display: flex; flex-direction: column; gap: 6px; border-top: 1px solid var(--line); padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px)); }
+.askbar textarea { width: 100%; min-height: 64px; resize: vertical; border: 1px solid var(--line); background: var(--panel2); border-radius: 8px; padding: 7px 9px; }
+.askbar[hidden] { display: none; }
+.note { color: var(--muted); font-size: 12.5px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <header class="top">
+    <div class="brand">
+      <svg viewBox="0 0 40 40" aria-hidden="true"><rect x="3" y="3" width="34" height="34" rx="8" fill="var(--pcb)"/><circle cx="13" cy="13" r="3.4" fill="#ff5a4d"/><circle cx="13" cy="21" r="3.4" fill="#ffd23f"/><circle cx="13" cy="29" r="3.4" fill="#3ddc84"/><rect x="21" y="10" width="10" height="20" rx="2" fill="#2d7fb8"/></svg>
+      <div><h1>Funduino Cube</h1><p>Simulator und Lernumgebung für den Arduino Nano</p></div>
+    </div>
+    <nav class="top-actions" aria-label="Hilfen">
+      <button class="chip" id="btnLern" aria-expanded="false" aria-controls="drawer">Lernpfad</button>
+      <button class="chip" id="btnSpick" aria-expanded="false" aria-controls="drawer">Spickzettel</button>
+      <label class="speed">Tempo
+        <select id="speed" aria-label="Simulationstempo"><option value="0.5">0,5×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="5">5×</option><option value="10">10×</option></select>
+      </label>
+    </nav>
+  </header>
+
+  <main class="stage">
+    <section class="cube-col" aria-label="Funduino Cube">
+      <div class="board-wrap"><svg id="board" viewBox="0 0 1810 1240" role="img" aria-label="Der Funduino Cube von oben mit LEDs, Taster, Bewegungsmelder, Lautsprecher, Ultraschall, LED-Ring, Servo, Infrarot, Fotowiderstand, Potentiometer, OLED, DHT11 und Beschleunigungssensor"></svg></div>
+      <div class="env" id="env" aria-label="Umgebung und Sensoren"></div>
+    </section>
+
+    <section class="ide" aria-label="Programmierumgebung">
+      <div class="ide-bar">
+        <button class="tb" id="btnCheck" title="Programm auf Fehler prüfen"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.2 3.2L13 4.5"/></svg>Überprüfen</button>
+        <button class="tb" id="btnRun" title="Programm auf den Cube laden und starten"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 8h10M8.5 3.5L13 8l-4.5 4.5"/></svg>Hochladen</button>
+        <button class="tb" id="btnStop" title="Programm anhalten und Cube zurücksetzen"><svg viewBox="0 0 16 16" fill="currentColor"><rect x="3.5" y="3.5" width="9" height="9" rx="1.5"/></svg>Stopp</button>
+        <select id="examples" aria-label="Beispiel laden"></select>
+        <span class="sp"></span>
+        <button class="tb" id="btnTipp" title="Hilfe zu deinem Programm"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5.5 11.5h5M6.2 14h3.6M8 1.8a4.2 4.2 0 0 0-2.4 7.6c.5.4.9 1 .9 1.6h3c0-.6.4-1.2.9-1.6A4.2 4.2 0 0 0 8 1.8z"/></svg>Tipp</button>
+        <button class="tb" id="btnMon" title="Serieller Monitor öffnen"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="6.8" cy="6.8" r="4.3"/><path d="M10 10l4 4"/></svg>Serieller Monitor</button>
+      </div>
+      <div class="ide-tab"><span>sketch_cube.ino</span></div>
+      <div class="editor">
+        <div class="gutter" id="gutter" aria-hidden="true"></div>
+        <div class="code-area">
+          <pre id="hl" aria-hidden="true"></pre>
+          <textarea id="code" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" wrap="off" aria-label="Programmcode"></textarea>
+        </div>
+      </div>
+      <div class="status"><span id="status">Arduino Nano · ATmega328P</span><span id="pos">Zeile 1, Spalte 1</span></div>
+      <div class="bottom">
+        <div class="tabs" role="tablist">
+          <button class="tab" role="tab" id="tabOut" aria-selected="true">Ausgabe</button>
+          <button class="tab" role="tab" id="tabMon" aria-selected="false">Serieller Monitor</button>
+        </div>
+        <div class="pane" id="paneOut" role="tabpanel"><div class="log" id="log"></div></div>
+        <div class="pane" id="paneMon" role="tabpanel" hidden>
+          <div class="mon">
+            <pre id="monOut" aria-live="off"></pre>
+            <div class="bar">
+              <input type="text" id="monIn" placeholder="Text an den Cube senden" aria-label="Text senden">
+              <button class="btn2" id="monSend">Senden</button>
+              <select id="baud" aria-label="Baudrate"><option>300</option><option>1200</option><option>2400</option><option>4800</option><option selected>9600</option><option>19200</option><option>38400</option><option>57600</option><option>115200</option></select>
+              <button class="btn2" id="monClear">Löschen</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <aside class="drawer" id="drawer" hidden aria-label="Lernhilfen">
+    <div class="drawer-head">
+      <div class="tabs" role="tablist">
+        <button class="tab" role="tab" id="dtLern" aria-selected="true">Lernpfad</button>
+        <button class="tab" role="tab" id="dtSpick" aria-selected="false">Spickzettel</button>
+      </div>
+      <button class="x" id="dClose" aria-label="Schublade schließen">×</button>
+    </div>
+    <div class="drawer-body" id="dbLern" role="tabpanel"></div>
+    <div class="drawer-body" id="dbSpick" role="tabpanel" hidden></div>
+  </aside>
+</div>
+<script>
+/* sim-core.js: Hardwaremodell und Arduino-Funktionen des Funduino Cube
+   Pinbelegung nach funduino-cube.de (Nano R3):
+   D2 IR · D3 Servo · D4 LED-Ring · D5 Echo · D6 Trigger · D7 Lautsprecher · D8 PIR · D9 Taster
+   D10 grün · D11 gelb · D12 rot · A3 DHT11 · A6 Poti · A7 Fotowiderstand */
+var CUBE = (function () {
+  'use strict';
+  const ABORT = { abort: true };
+  const PWM = [3, 5, 6, 9, 10, 11];
+  const PIN = { ir: 2, servo: 3, ring: 4, echo: 5, trig: 6, speaker: 7, pir: 8, button: 9,
+                green: 10, yellow: 11, red: 12, dht: 17, pot: 20, ldr: 21 };
+
+  const newStats = () => ({ toggles: {}, serialLines: 0, toneSeen: false, dimSeen: false,
+    servoAngles: new Set(), pulseOk: false, ringShown: false, pirRead: false, dhtRead: false,
+    readPot: false, readLdr: false, btnLed: false, pirLed: false, seenOn: {}, loopCount: 0,
+    toneFreqs: new Set(), redYellow: false, nightRed: false, dayGreen: false, nearLed: false, maxLit: 0, tempRed: false, tempGreen: false });
+
+  const S = {
+    speed: 1, running: false, runId: 0, toneVer: 0, serialVer: 0, logVer: 0,
+    env: { button: false, pirHold: false, pirUntil: 0, pot: 512, light: 70, dist: 60, temp: 22, hum: 45, ax: 0, ay: 0, az: 1 },
+    pin: {}, servo: { attached: false, target: 90, pin: null }, ring: { n: 12, shown: [], pin: null },
+    tone: { freq: 0, until: 0 }, serial: { begun: false, baud: 0, chunks: [], inbuf: [] },
+    stats: newStats(), log: [], hintSeen: new Set(), trigAt: null
+  };
+
+  /* ---------- Zeit ---------- */
+  let vOff = 0, rSync = performance.now();
+  const now = () => vOff + (performance.now() - rSync) * S.speed;
+  const resetClock = () => { vOff = 0; rSync = performance.now(); };
+  function setSpeed(s) { vOff = now(); rSync = performance.now(); S.speed = s; }
+  const sleepers = new Set();
+  function sleepReal(ms) {
+    return new Promise((res, rej) => {
+      const h = { t: setTimeout(() => { sleepers.delete(h); res(); }, ms), rej };
+      sleepers.add(h);
+    });
+  }
+  function abortAll() { for (const h of sleepers) { clearTimeout(h.t); h.rej(ABORT); } sleepers.clear(); }
+
+  /* ---------- Meldungen ---------- */
+  function log(sev, text) { S.log.push({ sev, text }); S.logVer++; }
+  function hint(key, text) { if (S.hintSeen.has(key)) return; S.hintSeen.add(key); log('hint', text); }
+  const pn = p => (p >= 14 && p <= 21) ? 'A' + (p - 14) : String(p);
+  const P = n => (S.pin[n] || (S.pin[n] = { mode: null, out: 0, pwm: null }));
+  const trunc = Math.trunc;
+
+  /* ---------- Hardware zurücksetzen ---------- */
+  function resetHardware() {
+    S.pin = {}; S.servo = { attached: false, target: 90, pin: null };
+    S.ring = { n: 12, shown: new Array(12).fill(0), pin: null };
+    S.tone = { freq: 0, until: 0 }; S.toneVer++;
+    S.serial = { begun: false, baud: 0, chunks: [], inbuf: [] }; S.serialVer++;
+    S.stats = newStats(); S.hintSeen = new Set(); S.trigAt = null; resetClock();
+  }
+
+  /* ---------- Abgeleitete Zustände für die Anzeige ---------- */
+  function ledLevel(p) {
+    const x = S.pin[p]; if (!x) return 0;
+    if (x.mode === 1) return x.pwm != null ? x.pwm / 255 : (x.out ? 1 : 0);
+    return x.out ? 0.07 : 0;   // INPUT + digitalWrite(HIGH) = nur Pull-up: LED glimmt schwach
+  }
+  const pirOn = () => S.env.pirHold || now() < S.env.pirUntil;
+  const ldrValue = () => Math.round(S.env.light / 100 * 1023);
+  function tickStats() {
+    const st = S.stats;
+    for (const p of [10, 11, 12]) {
+      const l = ledLevel(p);
+      if (l > 0.5) st.seenOn[p] = true;
+      if (l > 0.15 && l < 0.85 && S.pin[p] && S.pin[p].pwm != null) st.dimSeen = true;
+    }
+    if (ledLevel(12) > 0.5 && ledLevel(11) > 0.5) st.redYellow = true;
+    if (st.readLdr && S.env.light <= 30 && ledLevel(12) > 0.5) st.nightRed = true;
+    if (st.readLdr && S.env.light >= 70 && ledLevel(10) > 0.5) st.dayGreen = true;
+    if (st.pulseOk && S.env.dist < 20 && ledLevel(12) > 0.5) st.nearLed = true;
+    if (st.dhtRead && S.env.temp >= 25 && ledLevel(12) > 0.5) st.tempRed = true;
+    if (st.dhtRead && S.env.temp < 25 && ledLevel(10) > 0.5) st.tempGreen = true;
+    st.maxLit = Math.max(st.maxLit, S.ring.shown.filter(c => c).length);
+    if (S.env.button && ledLevel(12) > 0.5) st.btnLed = true;
+    if (pirOn() && ledLevel(12) > 0.5) st.pirLed = true;
+    if (S.tone.freq > 0) st.toneSeen = true;
+    if (S.tone.until && now() > S.tone.until) { S.tone.freq = 0; S.tone.until = 0; S.toneVer++; }
+  }
+
+  /* ---------- Arduino-API (pro Programmlauf neu, damit Abbruch sicher greift) ---------- */
+  class FloatBox { constructor(v) { this.v = v; } }
+  function makeApi(id) {
+    const alive = () => { if (S.runId !== id) throw ABORT; };
+    let cnt = 0;
+    const macro = () => new Promise((res, rej) => { const h = { t: setTimeout(() => { sleepers.delete(h); res(); }, 0), rej }; sleepers.add(h); });
+    const api = {
+      HIGH: 1, LOW: 0, INPUT: 0, OUTPUT: 1, INPUT_PULLUP: 2, LED_BUILTIN: 13,
+      A0: 14, A1: 15, A2: 16, A3: 17, A4: 18, A5: 19, A6: 20, A7: 21,
+      PI: Math.PI, HALF_PI: Math.PI / 2, TWO_PI: Math.PI * 2, BIN: 2, OCT: 8, DEC: 10, HEX: 16,
+      NEO_GRB: 82, NEO_RGB: 6, NEO_KHZ800: 0, NEO_KHZ400: 256, DHT11: 11, DHT22: 22, NULL: null,
+      __F: v => new FloatBox(v),
+      __i16: v => ((trunc(v) + 32768) & 0xFFFF) - 32768, __u16: v => trunc(v) & 0xFFFF,
+      __i32: v => trunc(v) | 0, __u32: v => trunc(v) >>> 0,
+      __i8: v => ((trunc(v) + 128) & 0xFF) - 128, __u8: v => trunc(v) & 0xFF, __b: v => (v ? 1 : 0),
+      __idiv: (a, b) => { if (b === 0) throw new Error('Division durch 0'); return trunc(a / b); },
+      __y: () => { alive(); if (++cnt >= 300) { cnt = 0; return macro(); } },
+      F: s => s,
+
+      pinMode(p, m) {
+        p = Number(p);
+        if (!(p >= 0 && p <= 21)) return hint('bad' + p, `Pin ${p} gibt es am Nano nicht (0–13 und A0–A7).`);
+        P(p).mode = m;
+        if (p === PIN.button && m === 2) hint('btn-pullup', 'Beim Cube hängt am Taster schon ein Widerstand nach GND (R4). Benutze pinMode(9, INPUT); gedrückt ergibt HIGH.');
+        if (p === 20 || p === 21) hint('a67', 'A6 und A7 sind am Nano reine Analog-Eingänge. Lies sie mit analogRead() aus, pinMode ist dafür nicht nötig.');
+      },
+      digitalWrite(p, v) {
+        p = Number(p); v = v ? 1 : 0; const x = P(p);
+        if (!(p >= 0 && p <= 21)) return hint('bad' + p, `Pin ${p} gibt es am Nano nicht (0–13 und A0–A7).`);
+        if (p === 20 || p === 21) return hint('a67', 'A6 und A7 sind am Nano reine Analog-Eingänge, hier kann man nicht schreiben.');
+        if (x.mode !== 1) hint('wr' + p, `digitalWrite(${pn(p)}, …) ohne pinMode(${pn(p)}, OUTPUT): Der Pin ist noch ein Eingang. Eine LED leuchtet dann höchstens ganz schwach. Schreibe pinMode(${pn(p)}, OUTPUT); in setup().`);
+        if (x.out !== v) S.stats.toggles[p] = (S.stats.toggles[p] || 0) + 1;
+        if (p === PIN.trig && x.out === 1 && v === 0) S.trigAt = now();
+        x.out = v; x.pwm = null;
+      },
+      analogWrite(p, v) {
+        p = Number(p); const x = P(p); v = Math.max(0, Math.min(255, trunc(v)));
+        if (!(p >= 0 && p <= 13)) return hint('bad' + p, `analogWrite geht nur an den digitalen Pins 0–13, nicht an ${pn(p)}.`);
+        x.mode = 1;
+        if (PWM.includes(p)) { x.pwm = v; x.out = v > 0 ? 1 : 0; }
+        else { x.pwm = null; x.out = v >= 128 ? 1 : 0; hint('pwm' + p, `Pin ${p} hat kein PWM (~). analogWrite kann hier nur an oder aus. PWM gibt es an 3, 5, 6, 9, 10, 11.`); }
+      },
+      digitalRead(p) {
+        p = Number(p); const x = P(p);
+        if (p === 20 || p === 21) { hint('a67', 'A6 und A7 sind am Nano reine Analog-Eingänge. Lies sie mit analogRead() aus, nicht mit digitalRead().'); return 0; }
+        if (x.mode === 1) return x.out;
+        if (p === PIN.button) return S.env.button ? 1 : 0;
+        if (p === PIN.pir) { S.stats.pirRead = true; return pirOn() ? 1 : 0; }
+        return x.out ? 1 : 0;
+      },
+      analogRead(p) {
+        p = Number(p);
+        const ch = (p >= 14 && p <= 21) ? p : (p >= 0 && p <= 7 ? p + 14 : -1);
+        if (ch < 0) { hint('ar', 'analogRead() geht nur an A0 bis A7.'); return 0; }
+        if (ch === PIN.pot) { S.stats.readPot = true; return S.env.pot; }
+        if (ch === PIN.ldr) { S.stats.readLdr = true; return ldrValue(); }
+        if (ch >= 14 && ch <= 16) { S.stats.readAcc = true; const g = [S.env.ax, S.env.ay, S.env.az][ch - 14]; return Math.max(0, Math.min(1023, Math.round(337 + g * 67.5 + (Math.random() - .5) * 2))); }
+        return trunc(Math.random() * 30);
+      },
+      delay: async ms => {
+        ms = Math.max(0, Number(ms) || 0); const target = now() + ms;
+        while (now() < target) { alive(); await sleepReal(Math.max(1, (target - now()) / S.speed)); }
+        alive();
+      },
+      delayMicroseconds: us => { if (us >= 1000) return api.delay(us / 1000); },
+      millis: () => trunc(now()), micros: () => trunc(now() * 1000),
+      tone(p, f, d) {
+        if (Number(p) !== PIN.speaker) hint('tn', 'Der Lautsprecher hängt am Cube an Pin 7. An Pin ' + p + ' hörst du nichts.');
+        S.tone.freq = Math.max(0, Number(f) || 0); S.stats.toneFreqs.add(S.tone.freq); S.tone.until = d > 0 ? now() + d : 0; S.toneVer++;
+      },
+      noTone() { S.tone.freq = 0; S.tone.until = 0; S.toneVer++; },
+      pulseIn: async (p, level, timeout) => {
+        p = Number(p); const to = (timeout === undefined ? 1000000 : timeout) / 1000;
+        if (p === PIN.echo && S.trigAt != null && now() - S.trigAt < 60) {
+          const d = S.env.dist;
+          if (d >= 2 && d <= 400) { S.trigAt = null; S.stats.pulseOk = true; return Math.round(d * 2 / 0.0343); }
+        }
+        hint('echo', 'pulseIn(5, HIGH) hat keinen Echo-Impuls gesehen. Setze vorher Pin 6 (Trigger) für etwa 10 µs auf HIGH und dann wieder auf LOW.');
+        await api.delay(Math.min(to, 1000)); return 0;
+      },
+      map: (x, a, b, c, d) => (b === a ? c : trunc((x - a) * (d - c) / (b - a)) + c),
+      constrain: (x, a, b) => Math.min(b, Math.max(a, x)),
+      min: Math.min, max: Math.max, abs: Math.abs, pow: Math.pow, sqrt: Math.sqrt, sq: x => x * x,
+      sin: Math.sin, cos: Math.cos, tan: Math.tan, radians: d => d * Math.PI / 180, degrees: r => r * 180 / Math.PI,
+      round: Math.round, floor: Math.floor, ceil: Math.ceil, isnan: Number.isNaN,
+      random: (a, b) => (b === undefined ? trunc(Math.random() * a) : a + trunc(Math.random() * (b - a))),
+      randomSeed: () => {},
+      Serial: {
+        begin(b) { S.serial.begun = true; S.serial.baud = Number(b) || 9600; },
+        print(x, d) { out(x, d, false); }, println(x, d) { out(x, d, true); },
+        write(x) { out(typeof x === 'number' ? String.fromCharCode(x) : x, undefined, false); },
+        available() { return S.serial.inbuf.length; },
+        read() { return S.serial.inbuf.length ? S.serial.inbuf.shift() : -1; },
+        parseInt() { let s = ''; while (S.serial.inbuf.length && !/[-0-9]/.test(S.serial.inbuf[0])) S.serial.inbuf.shift();
+          while (S.serial.inbuf.length && /[0-9-]/.test(S.serial.inbuf[0])) s += S.serial.inbuf.shift(); return parseInt(s, 10) || 0; },
+        setTimeout() {}, flush() {}
+      },
+      Servo: class Servo {
+        attach(p) { S.servo.attached = true; S.servo.pin = Number(p); if (Number(p) !== PIN.servo) hint('sv', 'Der Servo hängt am Cube an Pin 3, also servo1.attach(3);'); return 1; }
+        detach() { S.servo.attached = false; }
+        write(a) { if (!S.servo.attached) hint('sva', 'Vor servo1.write() braucht der Servo ein servo1.attach(3); in setup().');
+          a = Math.max(0, Math.min(180, Math.round(a))); S.servo.target = a; S.stats.servoAngles.add(a); }
+        writeMicroseconds(us) { this.write(api.map(us, 544, 2400, 0, 180)); }
+        read() { return S.servo.target; } attached() { return S.servo.attached; }
+      },
+      Adafruit_NeoPixel: class Adafruit_NeoPixel {
+        constructor(n, pin) { this.n = n; this.pin = pin; this.buf = new Array(n).fill(0); this.br = 255; this.began = false;
+          if (Number(pin) !== PIN.ring) hint('np', 'Der LED-Ring hängt am Cube an Pin 4.');
+          if (n !== 12) hint('nn', 'Der LED-Ring des Cube hat 12 LEDs.'); }
+        begin() { this.began = true; } numPixels() { return this.n; }
+        Color(r, g, b) { return ((r & 255) << 16) | ((g & 255) << 8) | (b & 255); }
+        ColorHSV(h, s = 255, v = 255) { h = (h % 65536) / 65536 * 6; const c = v * s / 255, x = c * (1 - Math.abs(h % 2 - 1)), m = v - c;
+          const t = [[c, x, 0], [x, c, 0], [0, c, x], [0, x, c], [x, 0, c], [c, 0, x]][Math.min(5, Math.floor(h))];
+          return this.Color(t[0] + m, t[1] + m, t[2] + m); }
+        setPixelColor(i, r, g, b) { if (i < 0 || i >= this.n) return; this.buf[i] = g === undefined ? r : this.Color(r, g, b); this.dirty = true; }
+        getPixelColor(i) { return this.buf[i] || 0; }
+        fill(c, first = 0, count = 0) { const e = count ? Math.min(this.n, first + count) : this.n; for (let i = first; i < e; i++) this.buf[i] = c; this.dirty = true; }
+        clear() { this.buf.fill(0); this.dirty = true; } setBrightness(b) { this.br = b; }
+        show() { if (!this.began) hint('nb', 'Vor dem Benutzen des Rings fehlt ring.begin(); in setup().');
+          const k = this.br / 255; this.dirty = false; S.ring.pin = this.pin; S.stats.ringShown = true;
+          S.ring.shown = this.buf.map(c => ((((c >> 16) & 255) * k) << 16) | ((((c >> 8) & 255) * k) << 8) | ((c & 255) * k)); }
+      },
+      DHT: class DHT {
+        constructor(pin) { this.pin = Number(pin); this.began = false; }
+        begin() { this.began = true; }
+        readTemperature(f) { S.stats.dhtRead = true; if (!this.began) hint('db', 'Vor dem Auslesen fehlt dht11.begin(); in setup().');
+          if (this.pin !== PIN.dht) { hint('dp', 'Der DHT11 hängt am Cube an A3.'); return NaN; }
+          return f ? S.env.temp * 1.8 + 32 : S.env.temp; }
+        readHumidity() { S.stats.dhtRead = true; if (!this.began) hint('db', 'Vor dem Auslesen fehlt dht11.begin(); in setup().');
+          if (this.pin !== PIN.dht) { hint('dp', 'Der DHT11 hängt am Cube an A3.'); return NaN; } return S.env.hum; }
+      },
+      __loopEnd: async () => {
+        alive(); S.stats.loopCount++;
+        if (S.stats.loopCount === 400 && now() < 1500 && Object.values(S.stats.toggles).some(n => n > 300))
+          hint('fast', 'Dein Programm schaltet sehr schnell, ohne delay(). Das Auge sieht dann nur ein dauerhaftes Leuchten. Setze ein delay(500); ein.');
+        await macro(); alive();
+      }
+    };
+    return api;
+  }
+
+  /* Serielle Ausgabe formatieren */
+  function out(x, d, nl) {
+    if (!S.serial.begun) return hint('sb', 'Serial.begin(9600); fehlt in setup(). Ohne diese Zeile erscheint nichts im Seriellen Monitor.');
+    let s;
+    if (x instanceof FloatBox) s = Number.isNaN(x.v) ? 'nan' : x.v.toFixed(d === undefined ? 2 : d);
+    else if (typeof x === 'boolean') s = x ? '1' : '0';
+    else if (typeof x === 'number') {
+      if (Number.isNaN(x)) s = 'nan';
+      else if (Number.isInteger(x)) s = (d === 2 || d === 8 || d === 16) ? x.toString(d).toUpperCase() : String(x);
+      else s = x.toFixed(d === undefined ? 2 : d);
+    } else s = x === undefined || x === null ? '' : String(x);
+    if (nl) { s += '\n'; S.stats.serialLines++; }
+    S.serial.chunks.push({ s, baud: S.serial.baud }); if (S.serial.chunks.length > 3000) S.serial.chunks.splice(0, 500);
+    S.serialVer++;
+  }
+
+  /* ---------- Fehlertexte ---------- */
+  function explain(e) {
+    const m = String((e && e.message) || e); let r;
+    if ((r = m.match(/^(\S+) is not defined/))) return `„${r[1]}“ ist nicht bekannt. Tippfehler? Groß- und Kleinschreibung zählt. Oder fehlt die Deklaration, zum Beispiel int ${r[1]} = 0;?`;
+    if ((r = m.match(/^(\S+) is not a function/))) return `„${r[1].replace(/^.*\./, '')}“ ist keine Funktion, die es hier gibt. Prüfe den Namen.`;
+    if (/Cannot access '(.+)' before initialization/.test(m)) return `„${RegExp.$1}“ wird benutzt, bevor es angelegt wurde.`;
+    if (/Assignment to constant/.test(m)) return 'Eine Konstante (const) lässt sich nicht verändern.';
+    if (/Cannot read properties of undefined/.test(m)) return 'Hier wird ein Objekt benutzt, das noch nicht angelegt wurde. Fehlt eine Zeile wie Servo servo1; oder servo1.attach(3);?';
+    return m;
+  }
+
+  /* ---------- Programm ausführen ---------- */
+  function stop() { S.runId++; abortAll(); S.running = false; S.tone.freq = 0; S.tone.until = 0; S.toneVer++; }
+  async function run(compiled) {
+    stop(); const id = S.runId; resetHardware(); S.running = true;
+    const api = makeApi(id);
+    try {
+      const prog = await compiled.fn(...compiled.names.map(n => api[n]));
+      if (S.runId !== id) return;
+      if (prog.setup) await prog.setup();
+      while (S.runId === id) { if (prog.loop) await prog.loop(); await api.__loopEnd(); }
+    } catch (e) {
+      if (e !== ABORT) { log('error', 'Laufzeitfehler: ' + explain(e)); if (S.runId === id) S.running = false; }
+    } finally { if (S.runId === id) S.running = false; }
+  }
+  function sendSerial(text) { for (const ch of text) S.serial.inbuf.push(ch); }
+  function clearLog() { S.log = []; S.logVer++; }
+  function clearSerial() { S.serial.chunks = []; S.serialVer++; }
+  function apiNames() { return Object.keys(makeApi(-1)); }
+
+  const CUBE = { S, PIN, PWM, ledLevel, pirOn, ldrValue, tickStats, setSpeed, now, run, stop, log, clearLog, clearSerial,
+                 sendSerial, apiNames, explain, ABORT, reset: () => { stop(); resetHardware(); } };
+  return CUBE;
+})();
+
+/* transpile.js: Arduino-C++ (Schul-Teilmenge) nach JavaScript */
+var TRANSPILE = (function () {
+  'use strict';
+  const TYPES = new Set(['void', 'int', 'long', 'short', 'float', 'double', 'bool', 'boolean', 'byte', 'char', 'word',
+    'unsigned', 'signed', 'const', 'static', 'volatile', 'String', 'size_t', 'uint8_t', 'uint16_t', 'uint32_t', 'int8_t', 'int16_t', 'int32_t']);
+  const CLASSES = { Servo: 'Servo.h', DHT: 'DHT.h', Adafruit_NeoPixel: 'Adafruit_NeoPixel.h' };
+  const ASYNC = new Set(['delay', 'delayMicroseconds', 'pulseIn']);
+  const CTRL = new Set(['if', 'else', 'for', 'while', 'do', 'return', 'switch', 'case', 'default', 'break', 'continue']);
+  const KIND = { int: '__i16', 'unsigned int': '__u16', word: '__u16', long: '__i32', 'long int': '__i32', 'unsigned long': '__u32',
+    'long long': '__i32', short: '__i16', 'unsigned short': '__u16', byte: '__u8', uint8_t: '__u8', 'unsigned char': '__u8',
+    int8_t: '__i8', int16_t: '__i16', uint16_t: '__u16', int32_t: '__i32', uint32_t: '__u32', size_t: '__u16',
+    bool: '__b', boolean: '__b', float: 'F', double: 'F', String: 'S', char: 'S' };
+  const ASSIGN = new Set(['=', '+=', '-=', '*=', '/=', '%=', '&=', '|=', '^=', '<<=', '>>=']);
+  const OPS = ['<<=', '>>=', '&&', '||', '==', '!=', '<=', '>=', '++', '--', '+=', '-=', '*=', '/=', '%=', '&=', '|=', '^=', '<<', '>>', '->', '::'];
+  const isInt = k => !!k && k.startsWith('__');
+
+  function lex(src) {
+    const toks = [], pp = []; let i = 0, line = 1; const n = src.length;
+    while (i < n) {
+      const c = src[i];
+      if (c === '\n') { line++; i++; continue; }
+      if (/\s/.test(c)) { i++; continue; }
+      if (c === '/' && src[i + 1] === '/') { while (i < n && src[i] !== '\n') i++; continue; }
+      if (c === '/' && src[i + 1] === '*') { i += 2; while (i < n && !(src[i] === '*' && src[i + 1] === '/')) { if (src[i] === '\n') line++; i++; } i += 2; continue; }
+      if (c === '#') { let j = i; while (j < n && src[j] !== '\n') j++; pp.push({ v: src.slice(i, j), line }); i = j; continue; }
+      if (c === '"') { let j = i + 1; while (j < n && src[j] !== '"' && src[j] !== '\n') { if (src[j] === '\\') j++; j++; }
+        if (src[j] !== '"') throw { line, msg: 'Ein Text in Anführungszeichen " " ist nicht geschlossen.' };
+        toks.push({ t: 'str', v: src.slice(i, j + 1), line }); i = j + 1; continue; }
+      if (c === "'") { let j = i + 1; while (j < n && src[j] !== "'" && src[j] !== '\n') { if (src[j] === '\\') j++; j++; }
+        toks.push({ t: 'chr', v: src.slice(i, j + 1), line }); i = j + 1; continue; }
+      if (/[0-9]/.test(c) || (c === '.' && /[0-9]/.test(src[i + 1] || ''))) { let j = i;
+        while (j < n && /[0-9a-zA-Z_.]/.test(src[j])) { if ((src[j] === 'e' || src[j] === 'E') && /[+-]/.test(src[j + 1] || '') && !/^0[xX]/.test(src.slice(i, j))) j++; j++; }
+        toks.push({ t: 'num', v: src.slice(i, j), line }); i = j; continue; }
+      if (/[A-Za-z_]/.test(c)) { let j = i; while (j < n && /[A-Za-z0-9_]/.test(src[j])) j++; toks.push({ t: 'id', v: src.slice(i, j), line }); i = j; continue; }
+      const m = OPS.find(o => src.startsWith(o, i));
+      toks.push({ t: 'op', v: m || c, line }); i += (m || c).length;
+    }
+    return { toks, pp };
+  }
+
+  const normType = w => KIND_KEY(w.filter(x => !['const', 'static', 'volatile', 'signed'].includes(x)).join(' ') || 'int');
+  const KIND_KEY = s => (s === 'unsigned' ? 'unsigned int' : s);
+  const kindOf = w => KIND[normType(w)];
+
+  /* Variablentypen vorab einsammeln (ohne Gültigkeitsbereiche, das genügt für Schulprogramme) */
+  function scanKinds(toks) {
+    const kinds = {}; let depth = 0;
+    for (let i = 0; i < toks.length; i++) {
+      const t = toks[i];
+      if (t.v === '(') depth++; else if (t.v === ')') depth--;
+      if (t.t !== 'id' || !TYPES.has(t.v) || (i > 0 && toks[i - 1].t === 'id' && TYPES.has(toks[i - 1].v))) continue;
+      let j = i; const w = []; while (j < toks.length && toks[j].t === 'id' && TYPES.has(toks[j].v)) w.push(toks[j++].v);
+      if (!w.length || w.includes('void') || !toks[j] || toks[j].t !== 'id' || !toks[j + 1] || !['=', ';', ',', '[', ')'].includes(toks[j + 1].v)) continue;
+      const k = kindOf(w); if (k) kinds[toks[j].v] = k;
+      if (depth === 0) { let d = 0, q = j + 1;
+        while (q < toks.length && !(d === 0 && toks[q].v === ';')) { const v = toks[q].v;
+          if ('([{'.includes(v)) d++; else if (')]}'.includes(v)) d--;
+          if (d === 0 && v === ',' && toks[q + 1] && toks[q + 1].t === 'id' && !TYPES.has(toks[q + 1].v) && k) kinds[toks[q + 1].v] = k; q++; } }
+    }
+    return kinds;
+  }
+
+  function transpile(src) {
+    const { toks, pp } = lex(src);
+    const includes = [], macros = {};
+    for (const p of pp) {
+      let m;
+      if ((m = p.v.match(/^#\s*include\s*[<"]([^>"]+)[>"]/))) includes.push(m[1]);
+      else if ((m = p.v.match(/^#\s*define\s+(\w+)\s*\(/))) throw { line: p.line, msg: `Makros mit Klammern (#define ${m[1]}(…)) werden hier nicht unterstützt. Nimm eine Funktion.` };
+      else if ((m = p.v.match(/^#\s*define\s+(\w+)\s*(.*)$/))) macros[m[1]] = lex(m[2]).toks;
+    }
+    const kinds = scanKinds(toks);
+    const userFns = new Set();
+    { let d = 0; for (let i = 0; i < toks.length; i++) { const v = toks[i].v;
+        if (v === '{') d++; else if (v === '}') d--;
+        else if (d === 0 && toks[i].t === 'id' && TYPES.has(toks[i].v)) { let j = i; while (toks[j] && toks[j].t === 'id' && TYPES.has(toks[j].v)) j++;
+          if (toks[j] && toks[j].t === 'id' && toks[j + 1] && toks[j + 1].v === '(') { userFns.add(toks[j].v); i = j; } else i = j - 1; } } }
+    for (const t of toks) if (t.t === 'id' && CLASSES[t.v] && !includes.includes(CLASSES[t.v]))
+      throw { line: t.line, msg: `„${t.v}“ ist noch unbekannt. Oben im Programm fehlt #include <${CLASSES[t.v]}>` };
+    if (!userFns.has('setup')) throw { line: 1, msg: 'Es fehlt die Funktion void setup() { … }' };
+    if (!userFns.has('loop')) throw { line: 1, msg: 'Es fehlt die Funktion void loop() { … }' };
+
+    let p = 0; const out = [];
+    const cur = () => toks[p], eof = () => p >= toks.length;
+    const lastLine = () => (toks[Math.min(p, toks.length) - 1] || toks[0] || { line: 1 }).line;
+    const expect = (v, why) => { if (eof() || cur().v !== v) throw { line: eof() ? lastLine() : (v === ';' ? toks[p - 1].line : cur().line), msg: why || `Hier wird „${v}“ erwartet.` }; return toks[p++]; };
+    const isTypeTok = t => t && t.t === 'id' && (TYPES.has(t.v) || CLASSES[t.v]);
+
+    /* Tokens bis zu einem Stoppzeichen (Tiefe 0) einsammeln, dabei fehlende Semikolons erkennen */
+    function exprUntil(stops) {
+      const r = []; let d = 0;
+      while (!eof()) {
+        const t = cur(), pr = r[r.length - 1];
+        if (d === 0 && stops.includes(t.v)) break;
+        if (t.v === '(' || t.v === '[' || t.v === '{') d++;
+        else if (t.v === ')' || t.v === ']' || t.v === '}') { d--; if (d < 0) { if (t.v === '}' && stops === ';') throw { line: pr ? pr.line : t.line, msg: 'Hier fehlt ein Semikolon ; am Ende der Zeile.' };
+          throw { line: t.line, msg: 'Es gibt eine schließende Klammer ' + t.v + ' zu viel.' }; } }
+        if (d === 0 && pr && stops === ';') {
+          const end = pr.t === 'id' || pr.t === 'num' || pr.t === 'str' || pr.t === 'chr' || pr.v === ')' || pr.v === ']';
+          const start = t.t === 'id' || t.t === 'num' || t.t === 'str' || t.t === 'chr';
+          if (end && start && pr.line !== t.line && !(pr.t === 'id' && TYPES.has(pr.v))) throw { line: pr.line, msg: 'Hier fehlt vermutlich ein Semikolon ; am Ende der Zeile.' };
+        }
+        r.push(t); p++;
+      }
+      return r;
+    }
+    function parenTokens() { expect('(', 'Nach if/for/while muss eine runde Klammer ( folgen.'); const tk = exprUntil(')'); expect(')', 'Die Klammer ( wurde nicht mit ) geschlossen.'); return tk; }
+
+    /* ---- Ausdrucks-Durchläufe ---- */
+    function castPass(tk) {
+      const r = [];
+      for (let i = 0; i < tk.length; i++) {
+        if (tk[i].v === '(' && isTypeTok(tk[i + 1]) && !CLASSES[tk[i + 1].v]) {
+          let j = i + 1; const w = []; while (tk[j] && tk[j].t === 'id' && TYPES.has(tk[j].v)) w.push(tk[j++].v);
+          const pr = tk[i - 1];
+          if (tk[j] && tk[j].v === ')' && tk[j + 1] && !(pr && (pr.t === 'id' || pr.v === ')' || pr.v === ']'))) {
+            let e = j + 1; if (tk[e].v === '(') { let d = 0; do { if (tk[e].v === '(') d++; else if (tk[e].v === ')') d--; e++; } while (e < tk.length && d > 0); }
+            else { e++; while (tk[e] && (tk[e].v === '(' || tk[e].v === '[')) { let d = 0; do { if ('(['.includes(tk[e].v)) d++; else if (')]'.includes(tk[e].v)) d--; e++; } while (e < tk.length && d > 0); } }
+            const k = kindOf(w), line = tk[i].line, id = (v, t = 'id') => ({ t, v, line });
+            const inner = castPass(tk.slice(j + 1, e));
+            if (isInt(k)) r.push(id(k), id('(', 'op'), ...inner, id(')', 'op')); else r.push(id('(', 'op'), ...inner, id(')', 'op'));
+            i = e - 1; continue;
+          }
+        }
+        r.push(tk[i]);
+      }
+      return r;
+    }
+    function divPass(tk) {
+      const atom = x => x && ((x.t === 'num' && /^\d+[uUlL]*$/.test(x.v)) || (x.t === 'id' && isInt(kinds[x.v])));
+      const r = [];
+      for (let i = 0; i < tk.length; i++) {
+        const t = tk[i], a = tk[i - 1], b = tk[i + 1];
+        if (t.v === '/' && t.t === 'op' && atom(a) && atom(b) && r.length && r[r.length - 1] === a && !['*', '/', '%', '.'].includes((tk[i - 2] || {}).v)
+            && !['*', '/', '%', '.', '(', '['].includes((tk[i + 2] || {}).v)) {
+          r.pop(); const L = t.line, o = (v, ty = 'op') => ({ t: ty, v, line: L });
+          r.push(o('__idiv', 'id'), o('('), a, o(','), b, o(')')); i++; continue;
+        }
+        r.push(t);
+      }
+      return r;
+    }
+    function serialPass(tk) {
+      const r = [];
+      for (let i = 0; i < tk.length; i++) {
+        r.push(tk[i]);
+        if (tk[i].v === 'Serial' && tk[i + 1] && tk[i + 1].v === '.' && tk[i + 2] && /^print(ln)?$/.test(tk[i + 2].v) && tk[i + 3] && tk[i + 3].v === '(') {
+          r.push(tk[i + 1], tk[i + 2], tk[i + 3]); let j = i + 4, d = 0; const a = [];
+          while (j < tk.length && !(d === 0 && (tk[j].v === ',' || tk[j].v === ')'))) { if (tk[j].v === '(' || tk[j].v === '[') d++; else if (tk[j].v === ')' || tk[j].v === ']') d--; a.push(tk[j++]); }
+          const fl = a.some(x => (x.t === 'num' && /^(\d*\.\d+|\d+\.\d*|\d+[fF])([eE][+-]?\d+)?[fF]?$/.test(x.v) && !/^0[xX]/.test(x.v)) || (x.t === 'id' && (kinds[x.v] === 'F' || /^(readTemperature|readHumidity|sqrt|pow|sin|cos|tan|radians|degrees)$/.test(x.v))));
+          if (fl && a.length && !(a[0].t === 'id' && /^__(i|u|b|idiv)/.test(a[0].v))) { const L = a[0].line; r.push({ t: 'id', v: '__F', line: L }, { t: 'op', v: '(', line: L }, ...a, { t: 'op', v: ')', line: L }); } else r.push(...a);
+          i = j - 1;
+        }
+      }
+      return r;
+    }
+    function numLit(v) { const m = v.match(/^(0[xX][0-9a-fA-F]+|0[bB][01]+|(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?)[uUlLfF]*$/); return m ? m[1] : v; }
+    function emitExpr(tk0) {
+      const tk = serialPass(divPass(castPass(tk0))), o = [];
+      for (let i = 0; i < tk.length; i++) {
+        const t = tk[i], pr = tk[i - 1], nx = tk[i + 1], member = pr && pr.v === '.';
+        if (t.t === 'id') {
+          if (macros[t.v] && !member) { o.push('(' + emitExpr(macros[t.v]) + ')'); continue; }
+          if (nx && nx.v === '(' && !member) {
+            if (userFns.has(t.v) || ASYNC.has(t.v)) { o.push('await ' + t.v); continue; }
+            if (CLASSES[t.v] && !(pr && pr.v === 'new')) { o.push('new ' + t.v); continue; }
+          }
+          if (t.v === 'sizeof') throw { line: t.line, msg: 'sizeof wird hier nicht unterstützt.' };
+          o.push(t.v);
+        } else if (t.t === 'num') o.push(numLit(t.v));
+        else if (t.t === 'chr') { let s = t.v.slice(1, -1); try { s = JSON.parse('"' + s.replace(/"/g, '\\"') + '"'); } catch (e) {} o.push(JSON.stringify(s)); }
+        else if (t.v === '->' || t.v === '::') throw { line: t.line, msg: `Das Zeichen ${t.v} wird hier nicht unterstützt.` };
+        else o.push(t.v);
+      }
+      return o.join(' ');
+    }
+
+    /* ---- Deklarationen ---- */
+    function parseDecl() {
+      const words = []; let cls = null;
+      while (isTypeTok(cur())) { const v = toks[p++].v; if (CLASSES[v]) cls = v; else words.push(v); }
+      const k = cls ? null : kindOf(words), parts = [];
+      for (;;) {
+        const nt = cur(); if (!nt || nt.t !== 'id') throw { line: nt ? nt.line : lastLine(), msg: 'Hier fehlt der Name der Variablen.' };
+        const name = toks[p++].v; let init = null;
+        if (cls) {
+          if (cur() && cur().v === '(') init = 'new ' + cls + '(' + emitExpr(parenTokens()) + ')';
+          else if (cur() && cur().v === '=') { p++; init = emitExpr(exprUntil(',;')); }
+          else init = 'new ' + cls + '()';
+        } else if (cur() && cur().v === '[') {
+          p++; const sz = exprUntil(']'); expect(']');
+          if (cur() && cur().v === '[') throw { line: cur().line, msg: 'Zweidimensionale Arrays werden hier noch nicht unterstützt.' };
+          if (cur() && cur().v === '=') { p++; expect('{'); const e = exprUntil('}'); expect('}'); init = '[' + emitExpr(e) + ']'; }
+          else init = 'new Array(' + (sz.length ? emitExpr(sz) : '0') + ').fill(' + (k === 'S' ? '""' : '0') + ')';
+        } else if (cur() && cur().v === '=') {
+          p++; const e = emitExpr(exprUntil(',;)')); init = isInt(k) ? `${k}(${e})` : e;
+        } else init = k === 'S' ? '""' : '0';
+        parts.push(name + ' = ' + init);
+        if (cur() && cur().v === ',') { p++; continue; } break;
+      }
+      return 'let ' + parts.join(', ');
+    }
+
+    /* ---- Anweisungen ---- */
+    function loopBody() {
+      const t = cur();
+      if (t && t.v === '{') { p++; out.push('{ await __y();'); while (!eof() && cur().v !== '}') stmt(); expect('}', 'Die Klammer { wurde nicht mit } geschlossen.'); out.push('}'); }
+      else if (t && t.v === ';') { p++; out.push('{ await __y(); }'); }
+      else { out.push('{ await __y();'); stmt(); out.push('}'); }
+    }
+    function block() {
+      const open = expect('{'); out.push('{');
+      while (!eof() && cur().v !== '}') stmt();
+      if (eof()) throw { line: open.line, msg: 'Die geschweifte Klammer { in dieser Zeile wird nie mit } geschlossen.' };
+      p++; out.push('}');
+    }
+    function stmt() {
+      const t = cur();
+      if (t.v === ';') { p++; out.push(';'); return; }
+      if (t.v === '{') return block();
+      if (t.v === '}') throw { line: t.line, msg: 'Eine schließende Klammer } ohne passende öffnende {.' };
+      if (t.t === 'id') {
+        switch (t.v) {
+          case 'if': p++; out.push('if (' + emitExpr(parenTokens()) + ')'); stmt();
+            if (cur() && cur().v === 'else') { p++; out.push(' else '); stmt(); } return;
+          case 'else': throw { line: t.line, msg: 'Dieses else hat kein passendes if davor.' };
+          case 'while': p++; out.push('while (' + emitExpr(parenTokens()) + ')'); return loopBody();
+          case 'do': p++; out.push('do '); loopBody(); expect('while', 'Nach do { … } fehlt while (…);'); out.push(' while (' + emitExpr(parenTokens()) + ');'); expect(';'); return;
+          case 'for': { p++; expect('('); let init = '';
+            if (isTypeTok(cur())) init = parseDecl(); else init = emitExpr(exprUntil(';'));
+            expect(';', 'In der for-Klammer fehlt ein Semikolon ;'); const c = emitExpr(exprUntil(';')); expect(';', 'In der for-Klammer fehlt ein Semikolon ;');
+            const inc = emitExpr(exprUntil(')')); expect(')'); out.push(`for (${init}; ${c}; ${inc})`); return loopBody(); }
+          case 'switch': { p++; out.push('switch (' + emitExpr(parenTokens()) + ') {'); expect('{');
+            while (!eof() && cur().v !== '}') {
+              if (cur().v === 'case') { p++; out.push('case ' + emitExpr(exprUntil(':')) + ':'); expect(':'); }
+              else if (cur().v === 'default') { p++; expect(':'); out.push('default:'); }
+              else stmt(); }
+            expect('}'); out.push('}'); return; }
+          case 'return': { p++; const e = cur().v === ';' ? '' : emitExpr(exprUntil(';')); expect(';'); out.push('return ' + e + ';'); return; }
+          case 'break': case 'continue': p++; expect(';'); out.push(t.v + ';'); return;
+        }
+        if (isTypeTok(t)) { out.push(parseDecl()); expect(';'); out.push(';'); return; }
+        const nx = toks[p + 1], k = kinds[t.v];
+        if (nx && ASSIGN.has(nx.v) && isInt(k)) {
+          p += 2; const rhs = emitExpr(exprUntil(';')); expect(';');
+          out.push(nx.v === '=' ? `${t.v} = ${k}(${rhs});` : `${t.v} = ${k}(${t.v} ${nx.v.slice(0, -1)} (${rhs}));`); return;
+        }
+        if (nx && (nx.v === '++' || nx.v === '--') && isInt(k) && toks[p + 2] && toks[p + 2].v === ';') { p += 3; out.push(`${t.v} = ${k}(${t.v} ${nx.v[0]} 1);`); return; }
+      }
+      if ((t.v === '++' || t.v === '--') && toks[p + 1] && toks[p + 1].t === 'id' && isInt(kinds[toks[p + 1].v]) && toks[p + 2] && toks[p + 2].v === ';') {
+        const n = toks[p + 1].v, k = kinds[n]; p += 3; out.push(`${n} = ${k}(${n} ${t.v[0]} 1);`); return; }
+      const e = exprUntil(';'); if (!e.length) throw { line: t.line, msg: 'Diese Zeile verstehe ich nicht.' };
+      expect(';'); out.push(emitExpr(e) + ';');
+    }
+
+    /* ---- Oberste Ebene ---- */
+    while (!eof()) {
+      const t = cur();
+      if (t.v === ';') { p++; continue; }
+      if (!isTypeTok(t)) throw { line: t.line, msg: `Außerhalb von Funktionen darf „${t.v}“ nicht stehen. Anweisungen gehören in setup() oder loop().` };
+      let j = p; while (isTypeTok(toks[j])) j++;
+      const hasClass = toks.slice(p, j).some(x => CLASSES[x.v]);
+      if (!hasClass && toks[j] && toks[j].t === 'id' && toks[j + 1] && toks[j + 1].v === '(') {
+        const name = toks[j].v; p = j + 2; const params = [];
+        while (!eof() && cur().v !== ')') {
+          while (isTypeTok(cur())) p++;
+          while (cur() && (cur().v === '&' || cur().v === '*')) p++;
+          if (cur() && cur().t === 'id') params.push(toks[p++].v);
+          if (cur() && cur().v === '[') { p++; expect(']'); }
+          if (cur() && cur().v === ',') p++; else break;
+        }
+        expect(')', 'Die Klammer ( der Parameterliste wird nicht geschlossen.');
+        if (cur() && cur().v === ';') { p++; continue; }
+        out.push(`async function ${name}(${params.join(', ')}) `); block();
+      } else { out.push(parseDecl()); expect(';'); out.push(';'); }
+    }
+    return { js: out.join('\n'), includes };
+  }
+
+  function compile(src, names) {
+    try {
+      const { js, includes } = transpile(src);
+      const body = '"use strict"; return (async function(){\n' + js + '\nreturn {setup: typeof setup === "function" ? setup : null, loop: typeof loop === "function" ? loop : null};\n})();';
+      let fn; try { fn = new Function(...names, body); }
+      catch (e) { return { ok: false, line: 0, msg: 'Das Programm konnte nicht übersetzt werden (' + e.message + '). Prüfe Klammern und Semikolons.' }; }
+      return { ok: true, fn, names, js, includes };
+    } catch (e) {
+      if (e && e.msg) return { ok: false, line: e.line, msg: e.msg };
+      return { ok: false, line: 0, msg: 'Interner Fehler beim Übersetzen: ' + (e && e.message || e) };
+    }
+  }
+  return { compile, transpile, lex };
+})();
+
+/* cube-art.js: Zeichnung des Funduino Cube nach dem Foto (viewBox 1810 × 1240), Bausteine 1 bis 13 */
+var CUBEART = (function () {
+  'use strict';
+  const NS = 'http://www.w3.org/2000/svg', INK = '#14171a';
+  function el(tag, a, p) { const e = document.createElementNS(NS, tag); for (const k in a) e.setAttribute(k, a[k]); if (p) p.appendChild(e); return e; }
+  const Rc = (p, x, y, w, h, fill, o) => el('rect', Object.assign({ x, y, width: w, height: h, fill }, o || {}), p);
+  const Ci = (p, x, y, r, fill, o) => el('circle', Object.assign({ cx: x, cy: y, r, fill }, o || {}), p);
+  const Ln = (p, x1, y1, x2, y2, stroke, w, o) => el('line', Object.assign({ x1, y1, x2, y2, stroke, 'stroke-width': w }, o || {}), p);
+  const Tx = (p, x, y, s, size, o) => { const t = el('text', Object.assign({ x, y, 'text-anchor': 'middle', 'font-size': size || 22, fill: INK }, o || {}), p); t.textContent = s; return t; };
+  function resistor(p, x, y, vert) { const g = el('g', { transform: `translate(${x},${y})${vert ? ' rotate(90)' : ''}` }, p);
+    Rc(g, -30, -9, 60, 18, '#c8d8ea', { rx: 7, stroke: '#5b7fa8', 'stroke-width': 2 }); [-16, -8, 0, 14].forEach((b, i) => Rc(g, b, -9, 5, 18, ['#7a3b12', '#111', '#7a3b12', '#c9a227'][i])); }
+  function badge(p, n, x, y) { Ci(p, x, y, 40, INK); Tx(p, x, y + 16, String(n), 46, { fill: '#fff', 'font-weight': 700 }); }
+  const pin = (p, x, y) => Ci(p, x, y, 6, '#d6b25e', { stroke: '#8a6d1c', 'stroke-width': 1.5 });
+
+  const TRACES = ['M980 78H1245V168H1288', 'M980 98H1225V275H1288', 'M980 118H1205V383H1288', 'M980 140H1180V455H1525V262', 'M980 160H1160V480H1583V500',
+    'M980 180H1140V500H1525V748H1593V772', 'M980 200H1118V525H1503V938', 'M980 220H1100V535H1478V938', 'M980 240H1080V548H598V928H880', 'M980 260H1040V527H575V940H780V1088',
+    'M980 280H1012V510H550V985H627V1018', 'M845 148H635V310H235V285', 'M845 168H660V332H212V285', 'M845 188H685V358H190V285', 'M845 212H710V380H358V503H298',
+    'M845 232H735V432H462V568H320V648', 'M845 252H755V450H440V585H298V648', 'M845 272H775V478H500V955H188V998', 'M845 292H795V498H525V975H402V1090'];
+
+  function build(svg, R, hooks) {
+    svg.textContent = '';
+    Rc(svg, 50, 30, 1700, 1190, '#fbfbfc', { rx: 64, stroke: '#c5c9cf', 'stroke-width': 5 });
+    TRACES.forEach(d => el('path', { d, fill: 'none', stroke: INK, 'stroke-width': 5, 'stroke-linejoin': 'round' }, svg));
+
+    /* Extern 1 und 2 */
+    Rc(svg, 297, 55, 310, 232, 'none', { stroke: INK, 'stroke-width': 2 });
+    [[375, 'Extern1', ['GND', '5V', 'SDA (A4)', 'SCL (A5)']], [528, 'Extern2', ['GND', '5V', 'RX (D1)', 'TX (D0)']]].forEach(([x, nm, ls]) => {
+      Tx(svg, x, 76, nm, 24, { 'font-weight': 700 }); ls.forEach((l, i) => Tx(svg, x - 48 + i * 32, 104, l, 15));
+      Rc(svg, x - 55, 128, 110, 38, '#fafafa', { rx: 4, stroke: '#9aa0a6', 'stroke-width': 2 }); Rc(svg, x - 38, 190, 76, 26, '#14171a', { rx: 3 });
+      for (let i = 0; i < 4; i++) { Rc(svg, x - 44 + i * 29, 136, 18, 22, '#e3e6ea', { rx: 2, stroke: '#9aa0a6' }); pin(svg, x - 33 + i * 22, 203); } });
+
+    /* Nano R3 */
+    Rc(svg, 835, 32, 145, 356, '#1c4f93', { rx: 8, stroke: '#0f2f5c', 'stroke-width': 4 });
+    Rc(svg, 872, 8, 70, 56, '#cfd3d6', { rx: 6, stroke: '#8a9096', 'stroke-width': 3 }); Rc(svg, 886, 20, 42, 16, '#6b7176', { rx: 3 });
+    for (const x of [846, 969]) Ln(svg, x, 76, x, 372, '#d6b25e', 9, { 'stroke-dasharray': '7 6' });
+    Rc(svg, 868, 98, 74, 74, '#14181b', { rx: 4 }); Ci(svg, 880, 110, 4, '#6b7176');
+    Rc(svg, 890, 214, 30, 26, '#cfd3d6', { rx: 4, stroke: '#7c848a', 'stroke-width': 2 }); Ci(svg, 905, 227, 6, '#555');
+    [['L', 858], ['PWR', 885], ['RX', 912], ['TX', 939]].forEach(([n, x], i) => { const r = Rc(svg, x, 258, 20, 24, '#eeeeee', { rx: 3, stroke: '#888', 'stroke-width': 1.5 }); if (i === 0) R.l13 = r; Tx(svg, x + 10, 302, n, 13, { fill: '#fff' }); });
+    Rc(svg, 876, 336, 62, 38, '#14181b', { rx: 3 }); for (let i = 0; i < 6; i++) pin(svg, 887 + (i % 3) * 16, 346 + Math.floor(i / 3) * 18);
+    Tx(svg, 905, 428, 'NANO R3', 28, { 'font-weight': 700 });
+
+    /* 1 LEDs */
+    badge(svg, 1, 1340, 88); R.led = {};
+    [[12, 'LED 1', '#c8372f', '#ff6a5c', 165], [11, 'LED 2', '#d9bd2a', '#fff25c', 275], [10, 'LED 3', '#3aa44f', '#6bff8a', 383]].forEach(([p, nm, base, on, y]) => {
+      resistor(svg, 1316, y, false); Ln(svg, 1346, y, 1376, y, INK, 5); const g = el('g', {}, svg);
+      const glow = Ci(g, 1415, y, 66, on, { opacity: 0 }); Ci(g, 1415, y, 46, '#dcdcdc', { stroke: '#8a8a8a', 'stroke-width': 3 });
+      Ci(g, 1415, y, 38, base); const lit = Ci(g, 1415, y, 38, on, { opacity: 0 }); el('path', { d: `M1392 ${y - 14}a28 28 0 0 1 22 -14`, stroke: '#fff', 'stroke-width': 6, 'stroke-linecap': 'round', fill: 'none', opacity: .55 }, g);
+      Tx(svg, 1450, y - 48, nm, 28, { 'font-weight': 700 }); Tx(svg, 1264, y + 14, 'D' + p, 21); Tx(svg, 1470, y + 6, 'GND', 20); R.led[p] = { glow, lit }; });
+
+    /* 2 Taster */
+    badge(svg, 2, 1698, 93); resistor(svg, 1527, 186, true); Tx(svg, 1523, 140, 'GND', 20); Tx(svg, 1658, 140, '5V', 20); Tx(svg, 1523, 275, 'D9', 21);
+    Rc(svg, 1550, 198, 104, 104, '#1f2326', { rx: 8 }); [[1562, 210], [1642, 210], [1562, 290], [1642, 290]].forEach(([x, y]) => Ci(svg, x, y, 5, '#8a8f94'));
+    const bg = el('g', { tabindex: 0, role: 'button', 'aria-label': 'Taster D9 (gedrückt halten)', style: 'cursor:pointer' }, svg);
+    Ci(bg, 1602, 250, 52, '#12356e'); R.cap = Ci(bg, 1602, 248, 49, '#2f6fe0', { stroke: '#1b4aa0', 'stroke-width': 3 }); Ci(bg, 1586, 232, 14, '#8fb4ff', { opacity: .5 });
+    Tx(svg, 1597, 335, 'Button', 28, { 'font-weight': 700 });
+    bg.addEventListener('pointerdown', e => { bg.setPointerCapture(e.pointerId); hooks.press(true); e.preventDefault(); });
+    ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(n => bg.addEventListener(n, () => hooks.press(false)));
+    bg.addEventListener('keydown', e => { if (e.key === ' ' || e.key === 'Enter') { hooks.press(true); e.preventDefault(); } });
+    bg.addEventListener('keyup', e => { if (e.key === ' ' || e.key === 'Enter') hooks.press(false); });
+
+    /* 3 PIR */
+    badge(svg, 3, 1700, 490); Tx(svg, 1597, 503, 'D8  5V  GND', 20);
+    R.pirGlow = Ci(svg, 1603, 575, 92, '#30d158', { opacity: 0 }); Ci(svg, 1603, 575, 64, INK);
+    const pg = el('g', { style: 'cursor:pointer', tabindex: 0, role: 'button', 'aria-label': 'Bewegungsmelder D8 (antippen für 3 Sekunden Bewegung)' }, svg);
+    Ci(pg, 1603, 575, 42, '#f6f6f1', { stroke: '#c9c9bd', 'stroke-width': 3 }); for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3; Ln(pg, 1603, 575, 1603 + 42 * Math.cos(a), 575 + 42 * Math.sin(a), '#d2d2c6', 2); }
+    pg.addEventListener('click', hooks.pirTap); pg.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { hooks.pirTap(); e.preventDefault(); } });
+    Tx(svg, 1603, 668, 'PIR', 28, { 'font-weight': 700 });
+
+    /* 4 Lautsprecher */
+    badge(svg, 4, 1700, 748); R.waves = [0, 1, 2].map(i => Ci(svg, 1623, 838, 70 + i * 14, 'none', { stroke: '#f0b400', 'stroke-width': 6, opacity: 0 }));
+    Ci(svg, 1623, 838, 56, INK); Ci(svg, 1623, 838, 38, 'none', { stroke: '#2b3136', 'stroke-width': 4 }); Ci(svg, 1623, 838, 12, '#2b3136');
+    Tx(svg, 1593, 780, 'D7', 21); Tx(svg, 1648, 780, 'GND', 20); Tx(svg, 1620, 916, 'Speaker', 28, { 'font-weight': 700 });
+
+    /* 5 Ultraschall */
+    badge(svg, 5, 1490, 1182); Rc(svg, 1310, 950, 365, 165, '#1f5fa8', { rx: 8, stroke: '#123e72', 'stroke-width': 3 });
+    for (const [x, y] of [[1393, 1045], [1610, 1042]]) { Ci(svg, x, y, 68, '#c7ccd0', { stroke: '#7c848a', 'stroke-width': 3 }); Ci(svg, x, y, 52, '#5d666b'); Ci(svg, x, y, 38, 'none', { stroke: '#3d4448', 'stroke-width': 6, 'stroke-dasharray': '4 5' }); Ci(svg, x, y, 18, '#3a4246'); }
+    Tx(svg, 1336, 976, 'R', 26, { fill: '#fff' }); Tx(svg, 1662, 976, 'T', 26, { fill: '#fff' }); [1458, 1481, 1504, 1527].forEach(x => Rc(svg, x - 6, 952, 12, 18, '#d6b25e'));
+    Tx(svg, 1491, 938, 'GND D5 D6 5V', 19); Rc(svg, 1462, 1074, 50, 26, '#c9ccd0', { rx: 13, stroke: '#7c848a', 'stroke-width': 2 });
+    R.dist = Tx(svg, 1487, 1012, '', 26, { fill: '#fff', 'font-weight': 700 }); Tx(svg, 1487, 1134, 'HC-SR04', 28, { 'font-weight': 700 });
+
+    /* 6 LED-Ring (Pixel 0 oben, im Uhrzeigersinn) */
+    const cx = 1072, cy = 1022; Ci(svg, cx, cy, 205, INK); Ci(svg, cx, cy, 142, '#fbfbfc'); R.px = [];
+    for (let i = 0; i < 12; i++) { const a = i * Math.PI / 6, g = el('g', { transform: `translate(${cx},${cy}) rotate(${i * 30})` }, svg);
+      const glow = Ci(g, 0, -176, 44, '#000', { opacity: 0 }); const dot = Rc(g, -26, -202, 52, 52, '#e6e8ec', { rx: 6, stroke: '#9aa0a6', 'stroke-width': 2 }); Ci(g, 0, -176, 9, '#c9ccd0');
+      Tx(svg, cx + 120 * Math.sin(a), cy - 120 * Math.cos(a) + 8, String(i), 22); R.px.push({ glow, dot }); }
+    badge(svg, 6, 1072, 1000); Tx(svg, 1072, 1072, 'WS2812B', 22, { 'font-weight': 700 }); Tx(svg, 878, 930, 'D4', 20, { 'text-anchor': 'end' }); Tx(svg, 878, 952, '5V', 20, { 'text-anchor': 'end' }); Tx(svg, 878, 974, 'GND', 20, { 'text-anchor': 'end' });
+
+    /* 7 Servo-Anschluss und Servomotor */
+    badge(svg, 7, 810, 1183); Tx(svg, 812, 1068, 'D3  5V  GND', 20); Rc(svg, 780, 1088, 66, 24, INK, { rx: 3 }); [797, 813, 829].forEach(x => pin(svg, x, 1100)); Tx(svg, 812, 1140, 'Servo', 28, { 'font-weight': 700 });
+    [[788, 797, '#6b3f1d'], [802, 813, '#d03a2f'], [816, 829, '#f0a030']].forEach(([x1, x2, c]) => el('path', { d: `M${x1} 866C${x1} 960 ${x2} 1000 ${x2} 1088`, stroke: c, 'stroke-width': 5, fill: 'none' }, svg));
+    Rc(svg, 645, 790, 185, 76, '#2d6cb5', { rx: 6, stroke: '#17406e', 'stroke-width': 3 }); Rc(svg, 628, 818, 219, 20, '#2d6cb5', { rx: 3, stroke: '#17406e', 'stroke-width': 3 });
+    Ci(svg, 668, 828, 30, '#244f86'); Tx(svg, 800, 768, 'Servomotor', 26, { 'font-weight': 700 }); R.servoTxt = Tx(svg, 700, 900, '', 22, { 'font-weight': 700 });
+    R.arm = Ln(svg, 668, 828, 668, 766, '#f2f5f7', 14, { 'stroke-linecap': 'round', stroke: '#eef1f3' }); Ci(svg, 668, 828, 8, '#8d9aa1');
+
+    /* 8 Infrarot */
+    badge(svg, 8, 603, 1183); Tx(svg, 603, 1006, '5V GND D2', 20); Rc(svg, 570, 1036, 66, 66, '#16181a', { rx: 8 }); [579, 603, 627].forEach(x => Rc(svg, x - 4, 1018, 8, 20, '#b5b9bd'));
+    Ln(svg, 580, 1052, 626, 1086, '#b5b9bd', 4); Ln(svg, 626, 1052, 580, 1086, '#b5b9bd', 4); Tx(svg, 603, 1135, 'VS1838B', 26, { 'font-weight': 700 });
+
+    /* 9 Fotowiderstand */
+    badge(svg, 9, 400, 1183); resistor(svg, 340, 1092, false); Ln(svg, 370, 1092, 407, 1088, INK, 4); Tx(svg, 283, 1100, 'GND', 20, { 'text-anchor': 'end' }); Tx(svg, 402, 1070, 'A7', 21); Tx(svg, 500, 1100, '5V', 20); Tx(svg, 400, 1140, 'LDR', 28, { 'font-weight': 700 });
+    R.rays = el('g', { opacity: 0 }, svg); for (let i = 0; i < 10; i++) { const a = i * Math.PI / 5; Ln(R.rays, 437 + 42 * Math.cos(a), 1085 + 42 * Math.sin(a), 437 + 56 * Math.cos(a), 1085 + 56 * Math.sin(a), '#f0b400', 5, { 'stroke-linecap': 'round' }); }
+    Ci(svg, 437, 1085, 33, '#d9b36a', { stroke: '#8c6a2a', 'stroke-width': 3 }); el('path', { d: 'M416 1085h10l5 -11 8 22 8 -22 5 11h10', fill: 'none', stroke: '#6b4a10', 'stroke-width': 4, 'stroke-linejoin': 'round' }, svg);
+
+    /* 10 Potentiometer */
+    badge(svg, 10, 78, 1185); Tx(svg, 190, 990, '5V  A6  GND', 20); Rc(svg, 118, 1010, 118, 128, '#1b1b1b', { rx: 12 });
+    R.pot = el('g', { tabindex: 0, role: 'slider', 'aria-label': 'Potentiometer A6', 'aria-valuemin': 0, 'aria-valuemax': 1023, style: 'cursor:grab' }, svg);
+    R.potHit = Ci(R.pot, 172, 1078, 62, '#cfd4d8', { stroke: '#8d9399', 'stroke-width': 3 }); for (const r of [52, 42, 32]) Ci(R.pot, 172, 1078, r, 'none', { stroke: '#a9afb5', 'stroke-width': 2 });
+    R.knob = el('g', {}, R.pot); Ln(R.knob, 172, 1078, 172, 1030, INK, 8, { 'stroke-linecap': 'round' }); Tx(svg, 190, 1175, 'Potentiometer', 24, { 'font-weight': 700 });
+    const setPot = e => { const r = R.potHit.getBoundingClientRect(); let a = Math.atan2(e.clientX - (r.left + r.width / 2), -(e.clientY - (r.top + r.height / 2))) * 180 / Math.PI; hooks.setPot(Math.round((Math.max(-135, Math.min(135, a)) + 135) / 270 * 1023)); };
+    R.pot.addEventListener('pointerdown', e => { R.pot.setPointerCapture(e.pointerId); R.drag = true; setPot(e); e.preventDefault(); });
+    R.pot.addEventListener('pointermove', e => { if (R.drag) setPot(e); }); ['pointerup', 'pointercancel'].forEach(n => R.pot.addEventListener(n, () => { R.drag = false; }));
+    R.pot.addEventListener('keydown', e => { const d = { ArrowRight: 32, ArrowUp: 32, ArrowLeft: -32, ArrowDown: -32 }[e.key]; if (d) { hooks.nudgePot(d); e.preventDefault(); } });
+
+    /* 11 OLED */
+    badge(svg, 11, 100, 720); Tx(svg, 275, 640, '5V  GND  SCL  SDA', 19); Rc(svg, 170, 648, 230, 220, '#1f5aa8', { rx: 10, stroke: '#123e72', 'stroke-width': 3 });
+    [[190, 668], [380, 668], [190, 848], [380, 848]].forEach(([x, y]) => Ci(svg, x, y, 15, '#cfd6dd', { stroke: '#7c8a96', 'stroke-width': 3 })); [240, 262, 284, 306].forEach(x => pin(svg, x, 662));
+    Rc(svg, 205, 690, 170, 120, '#0b0a1d', { rx: 4, stroke: '#2a2f5a', 'stroke-width': 2 }); Tx(svg, 290, 760, 'folgt', 26, { fill: '#6a6cc8', opacity: .7 }); Tx(svg, 285, 920, 'OLED 128x64', 28, { 'font-weight': 700 });
+
+    /* 12 DHT11 */
+    badge(svg, 12, 110, 408); Tx(svg, 342, 388, 'A3', 21); resistor(svg, 398, 478, true); Tx(svg, 399, 404, '5V', 20); Rc(svg, 135, 440, 135, 105, '#3aa6f0', { rx: 8, stroke: '#1f6aa8', 'stroke-width': 3 });
+    for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) Rc(svg, 152 + c * 26, 456 + r * 21, 16, 13, '#1f78bd', { rx: 2 });
+    [463, 484, 503, 524].forEach(y => Ln(svg, 270, y, 300, y, '#9aa0a6', 6)); Tx(svg, 330, 470, 'GND', 20); Tx(svg, 328, 531, '5V', 20); Tx(svg, 203, 575, 'DHT11', 28, { 'font-weight': 700 }); R.dht = Tx(svg, 203, 606, '', 22, { 'font-weight': 700 });
+
+    /* 13 Beschleunigungssensor ADXL335 */
+    badge(svg, 13, 112, 87); Tx(svg, 205, 108, 'ADXL335', 24, { 'font-weight': 700 }); Rc(svg, 147, 122, 125, 165, '#3350b4', { rx: 6, stroke: '#1d2f78', 'stroke-width': 3 });
+    [[163, 138], [257, 138]].forEach(([x, y]) => Ci(svg, x, y, 11, '#f4f4f4', { stroke: '#8a90b0', 'stroke-width': 2 })); Rc(svg, 178, 168, 62, 62, '#14181b', { rx: 4 });
+    Ci(svg, 209, 199, 22, 'none', { stroke: '#9fb0ff', 'stroke-width': 2 }); Ln(svg, 209, 183, 209, 215, '#9fb0ff', 1.5); Ln(svg, 193, 199, 225, 199, '#9fb0ff', 1.5); R.acc = Ci(svg, 209, 199, 6, '#ffd60a');
+    [165, 187, 209, 231, 253].forEach(x => pin(svg, x, 274)); Tx(svg, 165, 308, 'GND', 20); Tx(svg, 253, 308, '5V', 20);
+    Tx(svg, 236, 330, 'A0', 20, { 'text-anchor': 'end' }); Tx(svg, 214, 354, 'A1', 20, { 'text-anchor': 'end' }); Tx(svg, 192, 378, 'A2', 20, { 'text-anchor': 'end' });
+  }
+  return { build };
+})();
+
+/* cube-ui.js: Grafik des Funduino Cube, Sensorregler, Ton */
+var CUBEUI = (function () {
+  'use strict';
+  const NS = 'http://www.w3.org/2000/svg', S = CUBE.S, PIN = CUBE.PIN;
+  const $ = id => document.getElementById(id);
+  const frameHooks = [], R = {};
+  function el(tag, attrs, parent) { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; }
+  function txt(parent, x, y, str, extra) { const t = el('text', Object.assign({ x, y, 'text-anchor': 'middle', 'font-size': 11, style: 'fill:var(--silk)' }, extra || {}), parent); t.textContent = str; return t; }
+  const rgb = c => `rgb(${(c >> 16) & 255},${(c >> 8) & 255},${c & 255})`;
+
+  function build() {
+    const svg = $('board'), l13 = {};
+    CUBEART.build(svg, R, { press: v => { S.env.button = v; }, pirTap: () => { S.env.pirUntil = CUBE.now() + 3000; },
+      setPot: v => { S.env.pot = v; }, nudgePot: d => { S.env.pot = Math.max(0, Math.min(1023, S.env.pot + d)); } });
+    R.l13 = { glow: R.l13, dot: R.l13 };
+  }
+
+  /* ---------- Regler ---------- */
+  function buildEnv() {
+    const e = $('env');
+    e.innerHTML = `<h2>Umgebung und Sensoren</h2>
+    <div class="ctl"><span class="lab"><span>Taster D9</span><output id="oBtn">los</output></span><div class="row"><button class="btn2" id="envBtn">gedrückt halten</button></div></div>
+    <div class="ctl"><span class="lab"><span>Bewegungsmelder D8</span><output id="oPir">ruhig</output></span><div class="row"><button class="btn2" id="envPir">Bewegung (3 s)</button><label class="chk"><input type="checkbox" id="envPirHold">dauerhaft</label></div></div>
+    <div class="ctl"><label for="envPot"><span>Potentiometer A6</span><output id="oPot"></output></label><input type="range" id="envPot" min="0" max="1023"></div>
+    <div class="ctl"><label for="envLight"><span>Licht (Fotowiderstand A7)</span><output id="oLight"></output></label><input type="range" id="envLight" min="0" max="100"></div>
+    <div class="ctl"><label for="envDist"><span>Abstand zum Hindernis</span><output id="oDist"></output></label><input type="range" id="envDist" min="2" max="400"></div>
+    <div class="ctl"><label for="envTemp"><span>Temperatur DHT11 A3</span><output id="oTemp"></output></label><input type="range" id="envTemp" min="0" max="50" step="0.5"></div>
+    <div class="ctl"><label for="envHum"><span>Luftfeuchtigkeit DHT11</span><output id="oHum"></output></label><input type="range" id="envHum" min="20" max="90"></div>
+    <div class="ctl"><label for="env_ax"><span>Beschleunigung x (A0)</span><output id="o_ax"></output></label><input type="range" id="env_ax" min="-3" max="3" step="0.1"></div>
+    <div class="ctl"><label for="env_ay"><span>Beschleunigung y (A1)</span><output id="o_ay"></output></label><input type="range" id="env_ay" min="-3" max="3" step="0.1"></div>
+    <div class="ctl"><label for="env_az"><span>Beschleunigung z (A2)</span><output id="o_az"></output></label><input type="range" id="env_az" min="-3" max="3" step="0.1"></div>
+    <div class="ctl"><span class="lab"><span>Lautsprecher</span></span><label class="chk"><input type="checkbox" id="envSound" checked>Ton abspielen</label></div>`;
+    const bind = (id, key, num) => $(id).addEventListener('input', ev => { S.env[key] = num ? Number(ev.target.value) : ev.target.checked; });
+    bind('envPot', 'pot', 1); bind('envLight', 'light', 1); bind('envDist', 'dist', 1); bind('envTemp', 'temp', 1); bind('envHum', 'hum', 1); bind('envPirHold', 'pirHold'); bind('env_ax', 'ax', 1); bind('env_ay', 'ay', 1); bind('env_az', 'az', 1);
+    $('envSound').addEventListener('input', () => { R.lastTone = -1; });
+    const b = $('envBtn'), down = ev => { b.setPointerCapture(ev.pointerId); S.env.button = true; ev.preventDefault(); };
+    b.addEventListener('pointerdown', down); ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(n => b.addEventListener(n, () => { S.env.button = false; }));
+    b.addEventListener('keydown', ev => { if (ev.key === ' ' || ev.key === 'Enter') { S.env.button = true; ev.preventDefault(); } });
+    b.addEventListener('keyup', ev => { if (ev.key === ' ' || ev.key === 'Enter') S.env.button = false; });
+    $('envPir').addEventListener('click', () => { S.env.pirUntil = CUBE.now() + 3000; });
+  }
+  const setVal = (id, v) => { const n = $(id); if (document.activeElement !== n && Number(n.value) !== v) n.value = v; };
+  const setOut = (id, s) => { const n = $(id); if (n.textContent !== s) n.textContent = s; };
+
+  /* ---------- Ton ---------- */
+  let ac = null, osc = null;
+  function unlockAudio() { try { if (!ac) ac = new (window.AudioContext || window.webkitAudioContext)(); if (ac.state === 'suspended') ac.resume(); } catch (e) { ac = null; } }
+  function audio() {
+    if (R.lastTone === S.toneVer) return; R.lastTone = S.toneVer;
+    if (osc) { try { osc.stop(); } catch (e) {} osc = null; }
+    if (!ac || !$('envSound').checked || S.tone.freq <= 0) return;
+    try { osc = ac.createOscillator(); const g = ac.createGain(); osc.type = 'square'; osc.frequency.value = Math.min(S.tone.freq, 12000); g.gain.value = 0.04; osc.connect(g); g.connect(ac.destination); osc.start(); } catch (e) { osc = null; }
+  }
+
+  /* ---------- Zeichnen ---------- */
+  let last = performance.now(), servoCur = 90;
+  function frame(t) {
+    const dt = Math.min(0.1, (t - last) / 1000); last = t;
+    CUBE.tickStats();
+    for (const p of [10, 11, 12]) { const l = CUBE.ledLevel(p); R.led[p].lit.setAttribute('opacity', l.toFixed(2)); R.led[p].glow.setAttribute('opacity', (l * 0.5).toFixed(2)); }
+    const l13 = CUBE.ledLevel(13); R.l13.dot.setAttribute('fill', l13 > 0.5 ? '#ffb020' : '#eeeeee'); R.l13.dot.setAttribute('stroke', l13 > 0.5 ? '#c77b00' : '#888');
+    R.cap.setAttribute('fill', S.env.button ? '#1c4fae' : '#2f6fe0'); R.cap.setAttribute('r', S.env.button ? 44 : 49);
+    $('envBtn').classList.toggle('on', S.env.button); setOut('oBtn', S.env.button ? 'gedrückt' : 'los');
+    const pir = CUBE.pirOn(); R.pirGlow.setAttribute('opacity', pir ? 0.5 : 0); setOut('oPir', pir ? 'Bewegung' : 'ruhig');
+    const tgt = S.servo.target; servoCur += Math.max(-500 * dt, Math.min(500 * dt, tgt - servoCur));
+    const a = servoCur * Math.PI / 180; R.arm.setAttribute('x2', (668 - 62 * Math.cos(a)).toFixed(1)); R.arm.setAttribute('y2', (828 - 62 * Math.sin(a)).toFixed(1));
+    R.servoTxt.textContent = S.servo.attached ? Math.round(servoCur) + '°' : 'nicht verbunden';
+    const ton = S.tone.freq > 0, ph = (t / 220) % 3;
+    R.waves.forEach((w, i) => w.setAttribute('opacity', ton ? (0.15 + 0.5 * Math.max(0, 1 - Math.abs(ph - i) / 1.3)).toFixed(2) : 0));
+    R.knob.setAttribute('transform', `rotate(${(S.env.pot / 1023 * 270 - 135).toFixed(1)} 172 1078)`); R.pot.setAttribute('aria-valuenow', S.env.pot);
+    R.rays.setAttribute('opacity', (S.env.light / 100).toFixed(2));
+    R.dist.textContent = S.env.dist + ' cm'; R.dht.textContent = S.env.temp.toFixed(1) + '° · ' + S.env.hum + '%';
+    for (let i = 0; i < 12; i++) { const c = S.ring.shown[i] | 0, px = R.px[i];
+      if (c) { px.dot.setAttribute('fill', rgb(c)); px.glow.setAttribute('fill', rgb(c)); px.glow.setAttribute('opacity', 0.5); }
+      else { px.dot.setAttribute('fill', '#e6e8ec'); px.glow.setAttribute('opacity', 0); } }
+    setVal('envPot', S.env.pot); setOut('oPot', String(S.env.pot)); setVal('envLight', S.env.light); setOut('oLight', S.env.light + ' % → Wert ' + CUBE.ldrValue());
+    setVal('envDist', S.env.dist); setOut('oDist', S.env.dist + ' cm'); setVal('envTemp', S.env.temp); setOut('oTemp', S.env.temp.toFixed(1) + ' °C');
+    R.acc.setAttribute('cx', (209 + S.env.ax * 10).toFixed(1)); R.acc.setAttribute('cy', (199 - S.env.ay * 10).toFixed(1));
+    for (const k of ['ax', 'ay', 'az']) { setVal('env_' + k, S.env[k]); setOut('o_' + k, S.env[k].toFixed(1) + ' g'); }
+    setVal('envHum', S.env.hum); setOut('oHum', S.env.hum + ' %');
+    audio(); for (const f of frameHooks) f(t);
+    requestAnimationFrame(frame);
+  }
+  function init() { build(); buildEnv(); $('envPot').value = S.env.pot; $('envLight').value = S.env.light; $('envDist').value = S.env.dist; $('envTemp').value = S.env.temp; $('envHum').value = S.env.hum; requestAnimationFrame(frame); }
+  return { init, unlockAudio, onFrame: f => frameHooks.push(f), $ };
+})();
+
+/* examples.js: Beispielprogramme (Pins nach funduino-cube.de) */
+var EXAMPLES = [
+{ id: 'leer', title: 'Leeres Programm', code:
+`void setup() {
+  // läuft einmal beim Start
+}
+
+void loop() {
+  // läuft immer wieder
+}
+` },
+{ id: 'led-an', title: '1 · LED leuchten lassen', code:
+`// Die rote LED hängt am Cube an Pin 12
+int ledRot = 12;
+
+void setup() {
+  pinMode(ledRot, OUTPUT);     // Pin 12 ist ein Ausgang
+  digitalWrite(ledRot, HIGH);  // Strom an: die LED leuchtet
+}
+
+void loop() {
+  // hier ist nichts zu tun
+}
+` },
+{ id: 'blink', title: '2 · LED blinken lassen', code:
+`// Die rote LED hängt am Cube an Pin 12
+int ledRot = 12;
+
+void setup() {
+  pinMode(ledRot, OUTPUT);
+}
+
+void loop() {
+  digitalWrite(ledRot, HIGH);  // an
+  delay(1000);                 // 1000 Millisekunden warten
+  digitalWrite(ledRot, LOW);   // aus
+  delay(1000);
+}
+` },
+{ id: 'ampel', title: '3 · Ampel', code:
+`int ledGruen = 10;
+int ledGelb = 11;
+int ledRot = 12;
+
+void setup() {
+  pinMode(ledGruen, OUTPUT);
+  pinMode(ledGelb, OUTPUT);
+  pinMode(ledRot, OUTPUT);
+}
+
+void loop() {
+  digitalWrite(ledRot, HIGH);     // Rot
+  delay(2000);
+  digitalWrite(ledGelb, HIGH);    // Rot und Gelb
+  delay(1000);
+  digitalWrite(ledRot, LOW);
+  digitalWrite(ledGelb, LOW);
+  digitalWrite(ledGruen, HIGH);   // Grün
+  delay(2000);
+  digitalWrite(ledGruen, LOW);
+  digitalWrite(ledGelb, HIGH);    // Gelb
+  delay(1000);
+  digitalWrite(ledGelb, LOW);
+}
+` },
+{ id: 'taster', title: '4 · Taster schaltet LED', code:
+`int taster = 9;
+int ledRot = 12;
+int tasterStatus = 0;
+
+void setup() {
+  pinMode(taster, INPUT);     // Taster liefert ein Signal an den Nano
+  pinMode(ledRot, OUTPUT);    // LED bekommt ein Signal vom Nano
+}
+
+void loop() {
+  tasterStatus = digitalRead(taster);   // HIGH = gedrückt, LOW = nicht gedrückt
+  if (tasterStatus == HIGH) {
+    digitalWrite(ledRot, HIGH);
+  } else {
+    digitalWrite(ledRot, LOW);
+  }
+}
+` },
+{ id: 'ton', title: '5 · Lautsprecher: Tonleiter', code:
+`int lautsprecher = 7;
+
+void setup() {
+}
+
+void loop() {
+  tone(lautsprecher, 262);   // Ton c mit 262 Hertz
+  delay(400);
+  tone(lautsprecher, 294);   // d
+  delay(400);
+  tone(lautsprecher, 330);   // e
+  delay(400);
+  tone(lautsprecher, 349);   // f
+  delay(400);
+  noTone(lautsprecher);      // Ruhe
+  delay(1500);
+}
+` },
+{ id: 'poti', title: '6 · Poti im Seriellen Monitor', code:
+`int poti = A6;
+int wert = 0;
+
+void setup() {
+  Serial.begin(9600);        // Verbindung zum Seriellen Monitor
+}
+
+void loop() {
+  wert = analogRead(poti);   // liefert 0 bis 1023
+  Serial.print("Poti: ");
+  Serial.println(wert);
+  delay(300);
+}
+` },
+{ id: 'dimmen', title: '7 · LED dimmen mit dem Poti', code:
+`int poti = A6;
+int ledGruen = 10;         // Pin 10 kann PWM (~)
+
+void setup() {
+  pinMode(ledGruen, OUTPUT);
+}
+
+void loop() {
+  int eingang = analogRead(poti);                // 0 bis 1023
+  int helligkeit = map(eingang, 0, 1023, 0, 255); // umrechnen auf 0 bis 255
+  analogWrite(ledGruen, helligkeit);
+}
+` },
+{ id: 'nachtlicht', title: '8 · Nachtlicht mit Fotowiderstand', code:
+`int fotowiderstand = A7;
+int ledRot = 12;
+int ledGruen = 10;
+int hell = 0;
+
+void setup() {
+  pinMode(ledRot, OUTPUT);
+  pinMode(ledGruen, OUTPUT);
+  Serial.begin(9600);
+}
+
+void loop() {
+  hell = analogRead(fotowiderstand);   // viel Licht = hoher Wert
+  Serial.println(hell);
+  if (hell < 512) {                    // zu dunkel
+    digitalWrite(ledRot, HIGH);
+    digitalWrite(ledGruen, LOW);
+  } else {
+    digitalWrite(ledRot, LOW);
+    digitalWrite(ledGruen, HIGH);
+  }
+  delay(200);
+}
+` },
+{ id: 'servo', title: '9 · Servomotor', code:
+`#include <Servo.h>
+
+Servo servo1;
+
+void setup() {
+  servo1.attach(3);       // Servo hängt an Pin 3
+}
+
+void loop() {
+  servo1.write(0);        // Winkel in Grad
+  delay(800);
+  servo1.write(90);
+  delay(800);
+  servo1.write(180);
+  delay(800);
+}
+` },
+{ id: 'ultraschall', title: '10 · Abstandsmessung', code:
+`int trigPin = 6;
+int echoPin = 5;
+int ledRot = 12;
+
+void setup() {
+  pinMode(trigPin, OUTPUT);
+  pinMode(echoPin, INPUT);
+  pinMode(ledRot, OUTPUT);
+  Serial.begin(9600);
+}
+
+void loop() {
+  digitalWrite(trigPin, LOW);       // kurzer Impuls als Startsignal
+  delayMicroseconds(5);
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+
+  long dauer = pulseIn(echoPin, HIGH);          // Laufzeit in Mikrosekunden
+  float abstand = (dauer / 2.0) * 0.034;        // Schallgeschwindigkeit: 0,034 cm pro µs
+  Serial.print(abstand);
+  Serial.println(" cm");
+
+  if (abstand < 20) {
+    digitalWrite(ledRot, HIGH);
+  } else {
+    digitalWrite(ledRot, LOW);
+  }
+  delay(300);
+}
+` },
+{ id: 'ring', title: '11 · LED-Ring Lauflicht', code:
+`#include <Adafruit_NeoPixel.h>
+#define PIN 4
+#define NUMPIXELS 12
+
+Adafruit_NeoPixel ring = Adafruit_NeoPixel(NUMPIXELS, PIN, NEO_GRB + NEO_KHZ800);
+
+void setup() {
+  ring.begin();
+}
+
+void loop() {
+  for (int i = 0; i < NUMPIXELS; i++) {
+    ring.clear();
+    ring.setPixelColor(i, ring.Color(0, 80, 255));   // Rot, Grün, Blau (0 bis 255)
+    ring.show();                                     // erst jetzt leuchtet es
+    delay(100);
+  }
+}
+` },
+{ id: 'pir', title: '12 · Bewegungsmelder', code:
+`int bewegungsmelder = 8;
+int ledRot = 12;
+
+void setup() {
+  pinMode(bewegungsmelder, INPUT);
+  pinMode(ledRot, OUTPUT);
+}
+
+void loop() {
+  if (digitalRead(bewegungsmelder) == HIGH) {
+    digitalWrite(ledRot, HIGH);    // Bewegung erkannt
+  } else {
+    digitalWrite(ledRot, LOW);
+  }
+}
+` },
+{ id: 'dht', title: '13 · Temperatur messen', code:
+`#include <DHT.h>
+
+int ledGruen = 10;
+int ledRot = 12;
+
+DHT dht11(A3, DHT11);       // Sensor an A3
+float temperatur = 0;
+
+void setup() {
+  dht11.begin();
+  pinMode(ledGruen, OUTPUT);
+  pinMode(ledRot, OUTPUT);
+  Serial.begin(9600);
+}
+
+void loop() {
+  temperatur = dht11.readTemperature();
+  Serial.print("Temperatur: ");
+  Serial.println(temperatur);
+  if (temperatur < 25) {
+    digitalWrite(ledRot, LOW);
+    digitalWrite(ledGruen, HIGH);
+  } else {
+    digitalWrite(ledGruen, LOW);
+    digitalWrite(ledRot, HIGH);
+  }
+  delay(2000);
+}
+` }
+];
+
+/* coach.js: statische Hinweise zum Programmtext und Entscheidungshilfe */
+var COACH = (function () {
+  'use strict';
+  function consts(src) {
+    const m = {}; let r;
+    const a = /(?:const\s+)?(?:int|byte|long|unsigned\s+int|uint8_t)\s+(\w+)\s*=\s*(\d+)\s*;/g; while ((r = a.exec(src))) m[r[1]] = Number(r[2]);
+    const b = /^\s*#define\s+(\w+)\s+(\d+)\s*$/gm; while ((r = b.exec(src))) m[r[1]] = Number(r[2]);
+    return m;
+  }
+  function pinOf(t, c) { t = t.trim(); if (/^\d+$/.test(t)) return Number(t); if (/^A[0-7]$/.test(t)) return 14 + Number(t[1]); return t in c ? c[t] : null; }
+  const pn = p => (p >= 14 ? 'A' + (p - 14) : String(p));
+  function analyze(src0) {
+    const src = src0.replace(/\/\/[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, ''), c = consts(src), out = [], add = s => { if (!out.includes(s)) out.push(s); };
+    const outP = new Set(), inP = new Set(), pwmP = new Set(); let r;
+    const pm = /pinMode\s*\(\s*([\w]+)\s*,\s*(OUTPUT|INPUT_PULLUP|INPUT)\s*\)/g;
+    while ((r = pm.exec(src))) { const p = pinOf(r[1], c); if (p === null) continue; (r[2] === 'OUTPUT' ? outP : inP).add(p); }
+    const aw = /analogWrite\s*\(\s*([\w]+)\s*,/g; while ((r = aw.exec(src))) { const p = pinOf(r[1], c); if (p !== null) pwmP.add(p); }
+    const dw = /digitalWrite\s*\(\s*([\w]+)\s*,/g;
+    while ((r = dw.exec(src))) { const p = pinOf(r[1], c); if (p !== null && !outP.has(p) && !pwmP.has(p)) add(`In digitalWrite benutzt du Pin ${pn(p)}, aber in setup() fehlt pinMode(${r[1]}, OUTPUT); Ohne diese Zeile bleibt der Pin ein Eingang und die LED leuchtet höchstens schwach.`); }
+    const dr = /digitalRead\s*\(\s*([\w]+)\s*\)/g;
+    while ((r = dr.exec(src))) { const p = pinOf(r[1], c); if (p !== null && outP.has(p)) add(`Pin ${pn(p)} ist mit pinMode als OUTPUT eingestellt, du liest ihn aber mit digitalRead. Zum Einlesen braucht der Pin INPUT.`); }
+    if (/\bif\s*\(\s*[A-Za-z_]\w*\s*=\s*[^=]/.test(src)) add('In einer if-Bedingung steht ein einzelnes =. Das speichert einen Wert. Zum Vergleichen brauchst du zwei Gleichheitszeichen: ==');
+    if (/Serial\s*\.\s*print/.test(src) && !/Serial\s*\.\s*begin/.test(src)) add('Du benutzt Serial.print, aber Serial.begin(9600); fehlt in setup().');
+    if (/digitalWrite\s*\([^)]*HIGH/.test(src) && /digitalWrite\s*\([^)]*LOW/.test(src) && !/delay|millis|digitalRead|analogRead|pulseIn|Serial\s*\.\s*read/.test(src))
+      add('In deinem Programm fehlt ein delay(). Ohne Pause wechselt die LED so schnell, dass du nur ein Dauerleuchten siehst.');
+    return out;
+  }
+  const DECIDE = {
+    'out-digital': { fn: 'digitalWrite(pin, HIGH oder LOW)', why: 'Ausgang, nur an oder aus: z. B. LED, Lautsprecher-Pin. Der Nano gibt etwas aus, also pinMode(pin, OUTPUT).',
+      cube: 'Am Cube: rote LED D12, gelbe LED D11, grüne LED D10', snip: 'pinMode(12, OUTPUT);      // einmal in setup()\ndigitalWrite(12, HIGH);   // an (LOW = aus)\n' },
+    'out-analog': { fn: 'analogWrite(pin, 0 bis 255)', why: 'Ausgang, stufenlos (PWM): zum Dimmen. 0 ist aus, 255 ist voll an. Geht nur an Pins mit ~ : 3, 5, 6, 9, 10, 11.',
+      cube: 'Am Cube: grüne LED D10 und gelbe LED D11 können dimmen, die rote D12 nicht', snip: 'analogWrite(10, 128);   // halbe Helligkeit\n' },
+    'in-digital': { fn: 'digitalRead(pin)', why: 'Eingang, nur zwei Zustände: HIGH (an) oder LOW (aus). Der Nano liest etwas ein, also pinMode(pin, INPUT).',
+      cube: 'Am Cube: Taster D9, Bewegungsmelder D8', snip: 'pinMode(9, INPUT);          // einmal in setup()\nint status = digitalRead(9);   // HIGH oder LOW\n' },
+    'in-analog': { fn: 'analogRead(pin)', why: 'Eingang, stufenlos: liefert 0 bis 1023 (0 V bis 5 V). Nur an den Pins A0 bis A7. Ein pinMode ist nicht nötig.',
+      cube: 'Am Cube: Potentiometer A6, Fotowiderstand A7', snip: 'int wert = analogRead(A6);   // 0 bis 1023\n' }
+  };
+  const PINS = [['D2', 'Infrarot-Empfänger', 'Eingang digital'], ['D3', 'Servomotor (PWM)', 'Ausgang'], ['D4', 'LED-Ring (12 Pixel)', 'Ausgang, eigene Bibliothek'],
+    ['D5', 'Ultraschall Echo', 'Eingang digital'], ['D6', 'Ultraschall Trigger', 'Ausgang digital'], ['D7', 'Lautsprecher', 'Ausgang, tone()'], ['D8', 'Bewegungsmelder', 'Eingang digital'],
+    ['D9', 'Taster', 'Eingang digital'], ['D10', 'LED grün (PWM)', 'Ausgang digital oder analog'], ['D11', 'LED gelb (PWM)', 'Ausgang digital oder analog'], ['D12', 'LED rot', 'Ausgang digital'],
+    ['A3', 'DHT11 Temperatur und Feuchte', 'Bibliothek DHT'], ['A6', 'Potentiometer', 'Eingang analog'], ['A7', 'Fotowiderstand', 'Eingang analog'], ['A0 bis A2', 'Beschleunigungssensor ADXL335 (x, y, z)', 'Eingang analog'], ['A4/A5', 'OLED (I²C)', 'folgt']];
+  const CMDS = [
+    ['pinMode(pin, OUTPUT)', 'Legt fest, ob ein Pin etwas ausgibt (OUTPUT) oder einliest (INPUT). Steht in setup().'],
+    ['digitalWrite(pin, HIGH)', 'Schaltet einen Ausgang an (HIGH) oder aus (LOW).'],
+    ['digitalRead(pin)', 'Liest einen Eingang als HIGH oder LOW.'],
+    ['analogRead(A6)', 'Liest eine Spannung stufenlos als Zahl von 0 bis 1023.'],
+    ['analogWrite(pin, 0…255)', 'Gibt stufenlos aus (dimmen). Nur an Pins mit ~ .'],
+    ['delay(1000)', 'Wartet in Millisekunden. 1000 sind eine Sekunde.'],
+    ['Serial.begin(9600);  Serial.println(x);', 'Schreibt Werte in den Seriellen Monitor. Begin steht in setup().'],
+    ['tone(7, 440);  noTone(7);', 'Spielt einen Ton mit 440 Hertz am Lautsprecher und beendet ihn.'],
+    ['map(x, 0, 1023, 0, 255)', 'Rechnet einen Wertebereich in einen anderen um.'],
+    ['if (a == b) { … } else { … }', 'Entscheidung. Vergleichen mit ==, nicht mit einem einzelnen =.']
+  ];
+  return { analyze, DECIDE, PINS, CMDS };
+})();
+
+/* lessons.js: Lernpfad. Aufgaben mit test() werden im Cube automatisch erkannt, ohne test() hakst du sie selbst ab. */
+var LESSONS = (function () {
+  const st = () => CUBE.S.stats, L = p => CUBE.ledLevel(p);
+  return [
+  { id: 'led', title: 'LED zum Leuchten bringen', sub: 'pinMode und digitalWrite', pins: ['D12 rote LED', 'D11 gelbe LED'], ex: 'led-an',
+    intro: ['Der Arduino Nano hat Anschlüsse, die Pins heißen. An Pin 12 hängt die rote LED. Ein Pin kann etwas ausgeben (OUTPUT) oder etwas einlesen (INPUT). Eine LED bekommt ihren Strom vom Nano, also brauchst du einen Ausgang.',
+            'Dafür brauchst du zwei Schritte. pinMode(12, OUTPUT); legt den Pin als Ausgang fest und steht in setup(), weil das nur einmal nötig ist. digitalWrite(12, HIGH); schaltet ihn an, LOW schaltet ihn aus.'],
+    tasks: [
+      { t: 'Bringe die rote LED (Pin 12) dauerhaft zum Leuchten.', test: () => L(12) > 0.9, hints: ['Welche zwei Anweisungen brauchst du? Eine legt fest, was der Pin tut, die andere schaltet ihn an.', 'In setup() steht zuerst pinMode, danach digitalWrite. Die rote LED hängt an Pin 12.', 'pinMode(12, OUTPUT);\ndigitalWrite(12, HIGH);'] },
+      { t: 'Lass zusätzlich die gelbe LED (Pin 11) leuchten.', test: () => L(11) > 0.9, hints: ['Die gelbe LED braucht dieselben beiden Schritte wie die rote.', 'Ändere nur die Pin-Nummer auf 11.', 'pinMode(11, OUTPUT);\ndigitalWrite(11, HIGH);'] },
+      { t: 'Lösche die Zeile mit pinMode und starte neu. Was fällt dir an der LED auf?', hints: ['Schau genau auf die Helligkeit.', 'Ohne pinMode bleibt der Pin ein Eingang.', 'Die LED glimmt nur schwach, weil der Pin nicht als Ausgang eingestellt ist.'] }],
+    quiz: { q: 'Welche Zeile macht aus Pin 12 einen Ausgang?', o: ['digitalWrite(12, OUTPUT);', 'pinMode(12, OUTPUT);', 'pinMode(OUTPUT, 12);'], a: 1, why: 'pinMode(Pin, Modus) legt fest, was ein Pin tut. digitalWrite schaltet ihn erst danach an oder aus.' } },
+
+  { id: 'blink', title: 'LED blinken lassen', sub: 'delay und loop', pins: ['D12 rote LED'], ex: 'blink',
+    intro: ['Die Funktion loop() wiederholt sich von selbst immer wieder. Damit du das Blinken sehen kannst, braucht das Programm Pausen: delay(1000); hält es für 1000 Millisekunden an, das ist eine Sekunde.'],
+    tasks: [
+      { t: 'Die rote LED blinkt (mindestens vier Wechsel zwischen an und aus).', test: () => (st().toggles[12] || 0) >= 4, hints: ['Die LED muss an und wieder aus gehen, immer im Wechsel.', 'In loop(): an, warten, aus, warten.', 'digitalWrite(12, HIGH);\ndelay(1000);\ndigitalWrite(12, LOW);\ndelay(1000);'] },
+      { t: 'Lass die LED doppelt so schnell blinken.', hints: ['Welche Zahl bestimmt die Wartezeit?', 'Halbe Wartezeit bedeutet doppelt so schnelles Blinken.', 'delay(500); statt delay(1000);'] },
+      { t: 'Die rote und die gelbe LED blinken beide.', test: () => (st().toggles[11] || 0) >= 3 && (st().toggles[12] || 0) >= 3, hints: ['Du brauchst für die zweite LED ein eigenes pinMode.', 'Beide LEDs können im selben loop() geschaltet werden.', 'pinMode(11, OUTPUT); in setup() und die digitalWrite-Zeilen für Pin 11 in loop().'] }],
+    quiz: { q: 'Was bewirkt delay(500); ?', o: ['500 Sekunden warten', 'eine halbe Sekunde warten', '500 Minuten warten'], a: 1, why: 'delay zählt in Millisekunden. 1000 Millisekunden sind eine Sekunde, also sind 500 eine halbe.' } },
+
+  { id: 'ampel', title: 'Ampel', sub: 'mehrere Ausgänge nacheinander', pins: ['D12 rot', 'D11 gelb', 'D10 grün'], ex: 'ampel',
+    intro: ['Eine Ampel schaltet ihre Lichter in einer festen Reihenfolge: Rot, Rot und Gelb, Grün, Gelb. Jede Phase ist eine Folge aus digitalWrite und delay.'],
+    tasks: [
+      { t: 'Alle drei LEDs leuchten nacheinander.', test: () => { const o = st().seenOn; return o[10] && o[11] && o[12]; }, hints: ['Jede LED braucht ein pinMode in setup().', 'Pins: Rot 12, Gelb 11, Grün 10.', 'Schalte die LEDs in loop() eine nach der anderen an und wieder aus.'] },
+      { t: 'Baue die Rot-Gelb-Phase ein: Rot und Gelb leuchten gleichzeitig.', test: () => st().redYellow, hints: ['Schalte Gelb an, ohne Rot vorher auszuschalten.', 'Erst Rot an, warten, Gelb dazu, warten.', 'digitalWrite(12, HIGH); delay(2000); digitalWrite(11, HIGH); delay(1000);'] }],
+    quiz: { q: 'Warum steht pinMode in setup() und nicht in loop()?', o: ['Es ist nur einmal nötig', 'loop() wäre dafür zu langsam', 'Sonst kann das Programm nicht übersetzt werden'], a: 0, why: 'Ein Pin muss nur einmal eingestellt werden. loop() wiederholt sich ständig, das wäre unnötig.' } },
+
+  { id: 'taster', title: 'Taster einlesen', sub: 'digitalRead und if', pins: ['D9 Taster', 'D12 rote LED'], ex: 'taster',
+    intro: ['Beim Taster ist es umgekehrt wie bei der LED: Der Nano soll etwas einlesen. Dafür gilt pinMode(9, INPUT); Mit digitalRead(9) bekommst du HIGH, wenn der Taster gedrückt ist, sonst LOW.',
+            'Mit if (…) { … } else { … } entscheidest du, was dann passiert. Zum Vergleichen schreibst du ==, nicht = .'],
+    tasks: [
+      { t: 'Die rote LED leuchtet, solange der Taster gedrückt ist. Halte dazu den Taster am Cube gedrückt.', test: () => st().btnLed, hints: ['Der Taster ist ein Eingang, die LED ein Ausgang.', 'Lies den Taster mit digitalRead(9) und prüfe das Ergebnis mit if.', 'if (digitalRead(9) == HIGH) { digitalWrite(12, HIGH); } else { digitalWrite(12, LOW); }'] },
+      { t: 'Kehre es um: Die LED ist aus, solange der Taster gedrückt ist.', hints: ['Welcher Zustand muss in welchen Zweig?', 'Tausche HIGH und LOW bei den beiden digitalWrite-Zeilen.', 'if (digitalRead(9) == HIGH) { digitalWrite(12, LOW); } else { digitalWrite(12, HIGH); }'] },
+      { t: 'Ampel mit Wunschtaste: Grün leuchtet, nach Tastendruck wird es Gelb und dann Rot.', hints: ['Beginne mit der Ampel und füge den Taster als Bedingung ein.', 'Grün steht im Normalfall, erst im if-Zweig läuft die Folge Gelb, Rot.', 'Im if-Zweig: Grün aus, Gelb an, delay, Gelb aus, Rot an, delay, Rot aus.'] }],
+    quiz: { q: 'Welcher Befehl liest den Taster?', o: ['digitalWrite(9, HIGH);', 'digitalRead(9);', 'analogRead(9);'], a: 1, why: 'Der Taster hat nur zwei Zustände und ist ein Eingang. Dafür ist digitalRead da.' } },
+
+  { id: 'ton', title: 'Lautsprecher', sub: 'tone und noTone', pins: ['D7 Lautsprecher'], ex: 'ton',
+    intro: ['tone(7, 440); spielt einen Ton mit 440 Hertz, bis du noTone(7); aufrufst. Eine höhere Zahl bedeutet einen höheren Ton. Schalte unter dem Cube den Haken „Ton abspielen“ ein, sonst bleibt es still.'],
+    tasks: [
+      { t: 'Es erklingt ein Ton.', test: () => st().toneSeen, hints: ['Der Lautsprecher hängt an Pin 7.', 'tone braucht den Pin und die Frequenz.', 'tone(7, 440);'] },
+      { t: 'Spiele vier verschiedene Töne nacheinander.', test: () => st().toneFreqs.size >= 4, hints: ['Ändere die Frequenz zwischen den tone-Aufrufen.', 'Zwischen den Tönen brauchst du ein delay.', 'tone(7, 262); delay(400); tone(7, 330); delay(400); tone(7, 392); delay(400); tone(7, 523); delay(400);'] },
+      { t: 'Lass den Lautsprecher nur piepen, solange der Taster gedrückt ist.', hints: ['Kombiniere Taster und tone mit if.', 'Im else-Zweig schaltest du den Ton wieder aus.', 'if (digitalRead(9) == HIGH) { tone(7, 440); } else { noTone(7); }'] }],
+    quiz: { q: 'Was bedeutet die 440 in tone(7, 440); ?', o: ['die Nummer des Pins', 'die Dauer in Millisekunden', 'die Frequenz in Hertz'], a: 2, why: 'Die Frequenz gibt an, wie oft der Lautsprecher pro Sekunde schwingt. Mehr Schwingungen bedeuten einen höheren Ton.' } },
+
+  { id: 'poti', title: 'Potentiometer und Serieller Monitor', sub: 'analogRead und Serial', pins: ['A6 Potentiometer'], ex: 'poti',
+    intro: ['Ein Poti kennt nicht nur zwei Zustände, sondern ganz viele. analogRead(A6) liefert eine Zahl von 0 bis 1023. Pins mit einem A davor sind analoge Eingänge, ein pinMode brauchst du dafür nicht.',
+            'Um die Zahl zu sehen, schreibst du sie in den Seriellen Monitor: Serial.begin(9600); steht in setup(), Serial.println(wert); in loop().'],
+    tasks: [
+      { t: 'Zeige den Wert des Potis im Seriellen Monitor an und drehe das Poti.', test: () => st().readPot && st().serialLines > 0, hints: ['Du brauchst eine Variable für den Wert und zwei Serial-Befehle.', 'Serial.begin(9600); gehört in setup().', 'int wert = analogRead(A6);\nSerial.println(wert);\ndelay(300);'] },
+      { t: 'Drehe das Poti ganz nach links und ganz nach rechts. Welche beiden Zahlen siehst du?', hints: ['Beobachte den Seriellen Monitor.', 'Es sind die Grenzen des Wertebereichs.', '0 und 1023.'] },
+      { t: 'Zeige den Wert zusätzlich in Prozent an.', hints: ['Rechne den Bereich 0 bis 1023 auf 0 bis 100 um.', 'Dafür gibt es map.', 'int prozent = map(wert, 0, 1023, 0, 100);'] }],
+    quiz: { q: 'Welchen Wertebereich liefert analogRead?', o: ['0 bis 255', '0 bis 1023', '0 bis 5'], a: 1, why: 'Der Nano wandelt 0 V bis 5 V in 1024 Stufen um, also in die Zahlen 0 bis 1023.' } },
+
+  { id: 'dimmen', title: 'LED dimmen', sub: 'analogWrite (PWM) und map', pins: ['D10 grüne LED', 'A6 Potentiometer'], ex: 'dimmen',
+    intro: ['analogRead liest stufenlos ein, analogWrite gibt stufenlos aus: von 0 (aus) bis 255 (voll an). Das geht nur an Pins, die auf dem Nano mit einer Tilde ~ markiert sind: 3, 5, 6, 9, 10 und 11.',
+            'Das Poti liefert 0 bis 1023, analogWrite braucht aber 0 bis 255. map rechnet um: map(wert, 0, 1023, 0, 255).'],
+    tasks: [
+      { t: 'Die grüne LED (Pin 10) leuchtet gedimmt, also nicht ganz hell.', test: () => st().dimSeen, hints: ['Du brauchst analogWrite statt digitalWrite.', 'Ein Wert zwischen 1 und 254 ergibt eine gedimmte LED.', 'analogWrite(10, 100);'] },
+      { t: 'Das Poti steuert die Helligkeit der grünen LED.', test: () => st().dimSeen && st().readPot, hints: ['Lies das Poti ein und rechne den Wert um.', 'map(eingang, 0, 1023, 0, 255)', 'int eingang = analogRead(A6);\nanalogWrite(10, map(eingang, 0, 1023, 0, 255));'] },
+      { t: 'Probiere analogWrite an Pin 12 aus. Was passiert und warum?', hints: ['Schau, ob die LED jetzt stufenlos dimmt.', 'Wie viele Pins haben ein ~ ?', 'Pin 12 hat kein PWM. Die LED kann nur an oder aus sein.'] }],
+    quiz: { q: 'An welchem dieser Pins kann man mit analogWrite dimmen?', o: ['Pin 10 (grüne LED)', 'Pin 12 (rote LED)', 'Pin 8 (Bewegungsmelder)'], a: 0, why: 'PWM gibt es nur an 3, 5, 6, 9, 10 und 11. Die rote LED an Pin 12 kann nicht dimmen.' } },
+
+  { id: 'ldr', title: 'Nachtlicht mit Fotowiderstand', sub: 'analogRead und Schwellwert', pins: ['A7 Fotowiderstand', 'D12 rot', 'D10 grün'], ex: 'nachtlicht',
+    intro: ['Der Fotowiderstand an A7 liefert bei viel Licht hohe und bei wenig Licht niedrige Werte. Mit einem Schwellwert entscheidest du, wann es dunkel genug ist: if (hell < 512) { … }'],
+    tasks: [
+      { t: 'Zeige den Helligkeitswert im Seriellen Monitor an.', test: () => st().readLdr && st().serialLines > 0, hints: ['Es funktioniert wie beim Poti, aber am Pin A7.', 'analogRead(A7) und Serial.println.', 'int hell = analogRead(A7);\nSerial.println(hell);'] },
+      { t: 'Bei Dunkelheit leuchtet Rot, bei Helligkeit Grün. Verändere dazu den Regler „Licht“ unter dem Cube.', test: () => st().nightRed && st().dayGreen, hints: ['Du brauchst ein if mit else.', 'Dunkel bedeutet einen kleinen Wert.', 'if (hell < 512) { Rot an, Grün aus } else { Rot aus, Grün an }'] },
+      { t: 'Finde einen Schwellwert, der zu deinem Klassenzimmer passt.', hints: ['Lies die Werte bei Licht und bei Schatten ab.', 'Der Schwellwert liegt zwischen beiden.', 'Nimm zum Beispiel den Mittelwert der beiden Zahlen.'] }],
+    quiz: { q: 'Was bedeutet if (hell < 512) ?', o: ['Es ist hell genug', 'Der Wert liegt unter 512, es ist also eher dunkel', '512 Sekunden sind vergangen'], a: 1, why: 'Kleine Werte stehen für wenig Licht. Der Vergleich < prüft, ob der Wert kleiner als die Schwelle ist.' } },
+
+  { id: 'servo', title: 'Servomotor', sub: 'Bibliothek Servo', pins: ['D3 Servo'], ex: 'servo',
+    intro: ['Ein Servo fährt auf einen Winkel zwischen 0 und 180 Grad. Dafür gibt es die Bibliothek Servo. Oben steht #include <Servo.h> und Servo servo1; In setup() kommt servo1.attach(3); danach stellt servo1.write(90); den Winkel 90 Grad ein.'],
+    tasks: [
+      { t: 'Der Servo fährt nacheinander drei verschiedene Winkel an.', test: () => st().servoAngles.size >= 3, hints: ['Nach jedem write brauchst du ein delay, damit der Servo ankommt.', 'servo1.attach(3) nicht vergessen.', 'servo1.write(0); delay(800); servo1.write(90); delay(800); servo1.write(180); delay(800);'] },
+      { t: 'Der Servo fährt mit einer for-Schleife in kleinen Schritten von 0 bis 180 Grad.', test: () => st().servoAngles.size >= 30, hints: ['Eine Zählvariable läuft von 0 bis 180.', 'for (int w = 0; w <= 180; w++)', 'for (int w = 0; w <= 180; w++) { servo1.write(w); delay(15); }'] },
+      { t: 'Der Servo folgt dem Potentiometer.', hints: ['Lies A6 ein und rechne auf den Winkel um.', 'map(wert, 0, 1023, 0, 180)', 'servo1.write(map(analogRead(A6), 0, 1023, 0, 180));'] }],
+    quiz: { q: 'Was bedeutet servo1.attach(3); ?', o: ['Der Servo fährt auf 3 Grad', 'Der Servo hängt an Pin 3', 'Der Servo wartet 3 Sekunden'], a: 1, why: 'attach verbindet das Servo-Objekt mit einem Pin. Der Servo des Cube hängt an Pin 3.' } },
+
+  { id: 'echo', title: 'Abstand messen', sub: 'Ultraschall und pulseIn', pins: ['D6 Trigger', 'D5 Echo', 'D12 rot'], ex: 'ultraschall',
+    intro: ['Der Sensor sendet auf einen kurzen Impuls an Pin 6 (Trigger) ein Ultraschallsignal und meldet an Pin 5 (Echo), wie lange es unterwegs war. pulseIn(5, HIGH) liefert diese Zeit in Mikrosekunden.',
+            'Schall legt etwa 0,034 cm pro Mikrosekunde zurück, und zwar hin und zurück. Also gilt: Abstand = Zeit / 2 · 0,034.'],
+    tasks: [
+      { t: 'Zeige den Abstand in Zentimetern im Seriellen Monitor an. Verändere den Regler „Abstand“.', test: () => st().pulseOk && st().serialLines > 0, hints: ['Zuerst ein kurzer HIGH-Impuls an Pin 6, dann pulseIn an Pin 5.', 'Trigger LOW, 5 µs, HIGH, 10 µs, LOW.', 'Nimm das Beispiel „Abstandsmessung“ als Ausgangspunkt.'] },
+      { t: 'Die rote LED leuchtet, wenn das Hindernis näher als 20 cm ist.', test: () => st().nearLed, hints: ['Vergleiche den Abstand mit 20.', 'if (abstand < 20)', 'if (abstand < 20) { digitalWrite(12, HIGH); } else { digitalWrite(12, LOW); }'] },
+      { t: 'Baue einen Parksensor: Je näher das Hindernis, desto schneller piept der Lautsprecher.', hints: ['Die Wartezeit hängt vom Abstand ab.', 'delay(abstand * 5) ist ein Anfang.', 'tone(7, 880); delay(50); noTone(7); delay(abstand * 5);'] }],
+    quiz: { q: 'Warum wird die gemessene Zeit durch 2 geteilt?', o: ['Das Echo ist hin und zurück gelaufen', 'Der Cube hat zwei Sensoren', 'Der Nano kann nur halbe Zahlen verarbeiten'], a: 0, why: 'Das Signal läuft zum Hindernis und wieder zurück. Für die Entfernung zählt nur der halbe Weg.' } },
+
+  { id: 'ring', title: 'LED-Ring', sub: 'Bibliothek Adafruit_NeoPixel', pins: ['D4 LED-Ring (12 Pixel)'], ex: 'ring',
+    intro: ['Der Ring braucht eine Bibliothek: #include <Adafruit_NeoPixel.h>. Jede der 12 LEDs hat eine Nummer von 0 bis 11 und eine Farbe aus Rot, Grün und Blau (je 0 bis 255). setPixelColor stellt die Farbe ein, aber erst show() lässt sie leuchten.'],
+    tasks: [
+      { t: 'Mindestens ein Pixel leuchtet.', test: () => st().ringShown, hints: ['ring.begin() in setup() und ring.show() am Ende nicht vergessen.', 'setPixelColor(Nummer, Farbe)', 'ring.setPixelColor(0, ring.Color(255, 0, 0)); ring.show();'] },
+      { t: 'Mindestens sechs Pixel leuchten gleichzeitig.', test: () => st().maxLit >= 6, hints: ['Eine Schleife über die Pixel hilft.', 'for (int i = 0; i < 6; i++)', 'for (int i = 0; i < 6; i++) { ring.setPixelColor(i, ring.Color(0, 255, 0)); } ring.show();'] },
+      { t: 'Ein Lauflicht dreht sich im Kreis.', hints: ['Jeweils nur ein Pixel an, dann weiter.', 'Vor dem Setzen ring.clear() aufrufen.', 'Siehe Beispiel „LED-Ring Lauflicht“.'] }],
+    quiz: { q: 'Was passiert, wenn show() fehlt?', o: ['Nichts leuchtet', 'Alle Pixel leuchten weiß', 'Das Programm startet nicht'], a: 0, why: 'setPixelColor merkt sich die Farben nur im Speicher. show() schickt sie erst an den Ring.' } },
+
+  { id: 'pir', title: 'Bewegungsmelder', sub: 'digitaler Sensor', pins: ['D8 Bewegungsmelder', 'D12 rot'], ex: 'pir',
+    intro: ['Der Bewegungsmelder gibt HIGH aus, wenn er Bewegung sieht, und LOW, wenn nicht. Er ist ein digitaler Eingang an Pin 8. Nach einer Bewegung bleibt das Signal noch einige Sekunden HIGH.'],
+    tasks: [
+      { t: 'Die rote LED leuchtet bei Bewegung. Drücke dazu unter dem Cube „Bewegung (3 s)“.', test: () => st().pirLed, hints: ['Es ist wie beim Taster, nur an einem anderen Pin.', 'pinMode(8, INPUT) und digitalRead(8)', 'if (digitalRead(8) == HIGH) { digitalWrite(12, HIGH); } else { digitalWrite(12, LOW); }'] },
+      { t: 'Lass bei Bewegung zusätzlich den Lautsprecher piepen.', hints: ['Im if-Zweig kommt tone dazu.', 'Im else-Zweig noTone.', 'tone(7, 880); beziehungsweise noTone(7);'] }],
+    quiz: { q: 'Welcher Befehl liest den Bewegungsmelder?', o: ['digitalRead(8)', 'analogRead(8)', 'digitalWrite(8, HIGH)'], a: 0, why: 'Der Bewegungsmelder liefert nur an oder aus und ist ein Eingang, also digitalRead.' } },
+
+  { id: 'dht', title: 'Temperatur messen', sub: 'Bibliothek DHT', pins: ['A3 DHT11', 'D10 grün', 'D12 rot'], ex: 'dht',
+    intro: ['Der DHT11 misst Temperatur und Luftfeuchtigkeit. Du brauchst die Bibliothek DHT und die Zeile DHT dht11(A3, DHT11); Mit dht11.readTemperature() bekommst du die Temperatur in Grad Celsius. Sie hat Nachkommastellen, deshalb speicherst du sie in einer float-Variablen.'],
+    tasks: [
+      { t: 'Zeige die Temperatur im Seriellen Monitor an. Verändere den Regler „Temperatur“.', test: () => st().dhtRead && st().serialLines > 0, hints: ['dht11.begin() gehört in setup().', 'float temperatur = dht11.readTemperature();', 'Serial.println(temperatur);'] },
+      { t: 'Unter 25 °C leuchtet Grün, ab 25 °C leuchtet Rot.', test: () => st().tempRed && st().tempGreen, hints: ['Du brauchst ein if mit else.', 'if (temperatur < 25)', 'Siehe Beispiel „Temperatur messen“.'] }],
+    quiz: { q: 'Warum speichert man die Temperatur in einer float-Variablen?', o: ['Temperaturen können Nachkommastellen haben', 'float ist schneller als int', 'int gibt es bei Arduino nicht'], a: 0, why: 'int speichert nur ganze Zahlen. 22,5 Grad passen nur in eine float-Variable.' } }
+  ];
+})();
+
+/* ide.js: Editor, Werkzeugleiste, Ausgabe und Serieller Monitor */
+var IDE = (function () {
+  'use strict';
+  const $ = CUBEUI.$, S = CUBE.S, names = CUBE.apiNames();
+  const code = $('code'), hl = $('hl'), gutter = $('gutter');
+  let lastCompile = null, prevCode = null, monBaud = 9600, seenLog = -1, seenSer = -1;
+  const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
+
+  /* ---------- Syntaxfarben ---------- */
+  const KW = new Set('void int long short float double bool boolean byte char word unsigned signed const static volatile String if else for while do switch case default break continue return true false size_t uint8_t uint16_t uint32_t'.split(' '));
+  const CN = new Set('HIGH LOW INPUT OUTPUT INPUT_PULLUP LED_BUILTIN A0 A1 A2 A3 A4 A5 A6 A7 PI NEO_GRB NEO_KHZ800 DHT11 DEC HEX BIN'.split(' '));
+  const FN = new Set('pinMode digitalWrite digitalRead analogRead analogWrite delay delayMicroseconds millis micros tone noTone pulseIn map constrain min max abs random sqrt pow sin cos tan Serial Servo DHT Adafruit_NeoPixel setup loop attach write begin print println show setPixelColor Color readTemperature readHumidity clear setBrightness available read detach fill numPixels'.split(' '));
+  const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const RE = /(\/\/[^\n]*|\/\*[\s\S]*?(?:\*\/|$))|("(?:\\.|[^"\\\n])*"?|'(?:\\.|[^'\\\n])*'?)|(^[ \t]*#[^\n]*)|(\b0[xX][0-9a-fA-F]+\b|\b\d+\.?\d*(?:[eE][+-]?\d+)?[uUlLfF]*\b)|([A-Za-z_]\w*)/gm;
+  function highlight(src) {
+    let o = '', i = 0, m; RE.lastIndex = 0;
+    while ((m = RE.exec(src))) {
+      o += esc(src.slice(i, m.index)); i = RE.lastIndex; const t = m[0];
+      if (m[1]) o += '<span class="m">' + esc(t) + '</span>';
+      else if (m[2]) o += '<span class="s">' + esc(t) + '</span>';
+      else if (m[3]) o += '<span class="p">' + esc(t) + '</span>';
+      else if (m[4]) o += '<span class="n">' + esc(t) + '</span>';
+      else if (KW.has(t)) o += '<span class="k">' + t + '</span>';
+      else if (CN.has(t)) o += '<span class="c">' + t + '</span>';
+      else if (FN.has(t)) o += '<span class="f">' + t + '</span>';
+      else o += t;
+    }
+    return o + esc(src.slice(i)) + '\n';
+  }
+  let errLines = new Set();
+  function paint() {
+    hl.innerHTML = highlight(code.value);
+    const n = code.value.split('\n').length; let g = '';
+    for (let i = 1; i <= n; i++) g += `<div${errLines.has(i) ? ' class="err"' : ''}>${i}</div>`;
+    gutter.innerHTML = g; sync();
+  }
+  function sync() { hl.scrollTop = code.scrollTop; hl.scrollLeft = code.scrollLeft; gutter.scrollTop = code.scrollTop; }
+  function updatePos() { const s = code.selectionStart, v = code.value.slice(0, s), l = v.split('\n'); $('pos').textContent = `Zeile ${l.length}, Spalte ${l[l.length - 1].length + 1}`; }
+  let saveT = null;
+  function onInput() { lastCompile = null; errLines = new Set(); paint(); updatePos(); clearTimeout(saveT); saveT = setTimeout(() => store.set('fcube.code', code.value), 500); }
+  code.addEventListener('input', onInput); code.addEventListener('scroll', sync);
+  ['keyup', 'click', 'select'].forEach(n => code.addEventListener(n, updatePos));
+  let tabFree = false;
+  code.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { tabFree = true; return; }
+    if (e.key === 'Tab' && !tabFree) { e.preventDefault(); ins('  '); return; } if (e.key !== 'Tab') tabFree = false;
+    if (e.key === 'Enter' && !e.isComposing && !e.ctrlKey && !e.metaKey) {
+      const v = code.value, s = code.selectionStart, ls = v.lastIndexOf('\n', s - 1) + 1, ind = /^[ \t]*/.exec(v.slice(ls, s))[0];
+      let add = '\n' + ind, back = 0; if (v[s - 1] === '{') { add += '  '; if (v[s] === '}') { back = ind.length + 1; add += '\n' + ind; } }
+      e.preventDefault(); ins(add); if (back) { const p = code.selectionStart - back; code.setSelectionRange(p, p); }
+    }
+  });
+  function ins(t) { code.focus(); if (!document.execCommand || !document.execCommand('insertText', false, t)) { code.setRangeText(t, code.selectionStart, code.selectionEnd, 'end'); onInput(); } }
+
+  /* ---------- Meldungen ---------- */
+  function renderLog() {
+    if (seenLog === S.logVer) return; seenLog = S.logVer; const box = $('log'); box.textContent = '';
+    for (const l of S.log) { const d = document.createElement('div'); d.className = l.sev; d.textContent = l.text;
+      if (l.undo && prevCode !== null) { const b = document.createElement('button'); b.className = 'btn2'; b.textContent = 'Rückgängig'; b.style.marginLeft = '8px';
+        b.onclick = () => { setCode(prevCode); CUBE.clearLog(); }; d.appendChild(b); }
+      box.appendChild(d); }
+    $('paneOut').scrollTop = $('paneOut').scrollHeight;
+  }
+  function status(t) { $('status').textContent = t; }
+  function renderSerial() {
+    if (seenSer === S.serialVer) return; seenSer = S.serialVer; const pre = $('monOut');
+    const near = pre.scrollHeight - pre.scrollTop - pre.clientHeight < 40; let s = '';
+    for (const c of S.serial.chunks) s += c.baud === monBaud ? c.s : c.s.replace(/[^\s]/g, (m, i) => '▯#%&@?'[(m.charCodeAt(0) + i) % 6]);
+    if (s.length > 20000) s = s.slice(-20000); pre.textContent = s; if (near) pre.scrollTop = pre.scrollHeight;
+  }
+  function tab(which) {
+    const mon = which === 'mon'; $('tabOut').setAttribute('aria-selected', !mon); $('tabMon').setAttribute('aria-selected', mon);
+    $('paneOut').hidden = mon; $('paneMon').hidden = !mon; if (mon) { seenSer = -1; renderSerial(); }
+  }
+  $('tabOut').onclick = () => tab('out'); $('tabMon').onclick = () => tab('mon'); $('btnMon').onclick = () => tab('mon');
+  $('baud').onchange = e => { monBaud = Number(e.target.value); seenSer = -1; };
+  $('monClear').onclick = () => CUBE.clearSerial();
+  const send = () => { const i = $('monIn'); if (!S.running) return; CUBE.sendSerial(i.value + '\n'); i.value = ''; };
+  $('monSend').onclick = send; $('monIn').addEventListener('keydown', e => { if (e.key === 'Enter') send(); });
+
+  /* ---------- Überprüfen, Hochladen, Stopp ---------- */
+  function check() {
+    CUBE.clearLog(); errLines = new Set(); const src = code.value;
+    const r = TRANSPILE.compile(src, names); lastCompile = r;
+    if (!r.ok) { CUBE.log('error', (r.line ? 'Zeile ' + r.line + ': ' : '') + r.msg); if (r.line) errLines.add(r.line); paint(); status('Fehler beim Überprüfen'); tab('out'); return null; }
+    CUBE.log('ok', 'Überprüfen: keine Fehler gefunden.');
+    if (window.COACH) COACH.analyze(src).forEach(w => CUBE.log('hint', w));
+    paint(); status('Überprüft, keine Fehler'); return r;
+  }
+  function run() {
+    CUBEUI.unlockAudio(); const r = check(); if (!r) return;
+    CUBE.run(r); status('Hochgeladen, das Programm läuft'); if (window.LEARN) LEARN.onRun();
+  }
+  function stop() { CUBE.reset(); status('Angehalten, der Cube ist zurückgesetzt'); }
+  $('btnCheck').onclick = check; $('btnRun').onclick = run; $('btnStop').onclick = stop;
+  $('speed').onchange = e => CUBE.setSpeed(Number(e.target.value));
+  document.addEventListener('keydown', e => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); run(); } });
+
+  /* ---------- Code laden ---------- */
+  function setCode(src) { code.value = src; errLines = new Set(); paint(); updatePos(); store.set('fcube.code', src); }
+  function loadCode(src, title) {
+    prevCode = code.value; setCode(src); CUBE.clearLog();
+    S.log.push({ sev: 'info', text: (title ? '„' + title + '“ geladen. ' : 'Programm geladen. '), undo: true }); S.logVer++; tab('out'); status('Neues Programm im Editor');
+  }
+  const sel = $('examples'); sel.innerHTML = '<option value="">Beispiel laden …</option>' + EXAMPLES.map(e => `<option value="${e.id}">${esc(e.title)}</option>`).join('');
+  sel.onchange = () => { const e = EXAMPLES.find(x => x.id === sel.value); sel.value = ''; if (e) loadCode(e.code, e.title); };
+  $('btnTipp').onclick = () => { if (window.LEARN) { const t = LEARN.tipp(); CUBE.log('tip', t); tab('out'); } };
+
+  function init() {
+    const saved = store.get('fcube.code'); setCode(saved && saved.trim() ? saved : EXAMPLES.find(e => e.id === 'blink').code);
+    CUBEUI.onFrame(() => { renderLog(); renderSerial(); });
+  }
+  return { init, run, check, stop, tab, loadCode, setCode, getCode: () => code.value, insert: t => ins(t), lastCompile: () => lastCompile, esc };
+})();
+
+/* learn.js: Schublade mit Lernpfad und Spickzettel, Tipps */
+var LEARN = (function () {
+  'use strict';
+  const $ = CUBEUI.$, S = CUBE.S, esc = IDE.esc;
+  const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
+  let done = new Set(), quiz = {}, hintLv = {}, cur = null, tabNow = 'lern', decide = { dir: null, kind: null };
+  try { done = new Set(JSON.parse(store.get('fcube.done') || '[]')); quiz = JSON.parse(store.get('fcube.quiz') || '{}'); } catch (e) {}
+  const save = () => { store.set('fcube.done', JSON.stringify([...done])); store.set('fcube.quiz', JSON.stringify(quiz)); };
+  const key = (l, i) => l.id + ':' + i;
+  const lessonDone = l => l.tasks.every((t, i) => done.has(key(l, i)));
+  const total = LESSONS.reduce((a, l) => a + l.tasks.length, 0);
+
+  /* ---------- Lernpfad ---------- */
+  function renderLern() {
+    const box = $('dbLern'), top = box.scrollTop;
+    if (!cur) {
+      const n = done.size;
+      box.innerHTML = `<h2>Lernpfad</h2><p>Wähle eine Lektion. Ob eine Aufgabe geschafft ist, erkennt der Cube meistens selbst. Alle anderen Aufgaben hakst du selbst ab.</p>
+        <p class="note">${n} von ${total} Aufgaben geschafft</p>
+        <ul class="lessons">${LESSONS.map((l, i) => `<li><button data-act="open" data-id="${l.id}" class="${lessonDone(l) ? 'done' : ''}"><span class="nr">${lessonDone(l) ? '✓' : i + 1}</span><span><strong>${esc(l.title)}</strong><small>${esc(l.sub)}</small></span></button></li>`).join('')}</ul>
+        <p class="note">Später dazu: OLED-Display und Infrarot-Fernbedienung.</p>`;
+    } else {
+      const l = LESSONS.find(x => x.id === cur), ex = EXAMPLES.find(e => e.id === l.ex), q = l.quiz, qa = quiz[l.id];
+      box.innerHTML = `<div class="lesson-box"><button class="btn ghost" data-act="back" style="align-self:flex-start">← Alle Lektionen</button>
+        <h2>${esc(l.title)}</h2><div class="pins">${l.pins.map(p => `<span class="tag">${esc(p)}</span>`).join('')}</div>
+        ${l.intro.map(p => `<p>${esc(p)}</p>`).join('')}
+        ${ex ? `<button class="btn" data-act="example" data-id="${ex.id}" style="align-self:flex-start">Beispielprogramm in den Editor laden</button>` : ''}
+        <h3>Aufgaben</h3>
+        ${l.tasks.map((t, i) => { const k = key(l, i), ok = done.has(k), lv = hintLv[k] || 0;
+          return `<div class="task ${ok ? 'ok' : ''}"><span class="box" ${t.test ? '' : `data-act="tick" data-k="${k}" role="checkbox" aria-checked="${ok}" tabindex="0" style="cursor:pointer"`}>${ok ? '✓' : ''}</span>
+            <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:6px"><span>${esc(t.t)}</span>
+            ${t.test ? '<span class="note">Wird automatisch erkannt.</span>' : '<span class="note">Hake selbst ab, wenn du fertig bist.</span>'}
+            ${lv ? t.hints.slice(0, lv).map((h, j) => j === 2 ? `<pre class="snip">${esc(h)}</pre>` : `<div class="hintbox">${esc(h)}</div>`).join('') : ''}
+            ${ok || lv >= 3 ? '' : `<button class="btn ghost" data-act="hint" data-k="${k}" style="align-self:flex-start">${lv === 0 ? 'Tipp holen' : lv === 1 ? 'Noch ein Tipp' : 'Lösung zeigen'}</button>`}</div></div>`; }).join('')}
+        <h3>Kurz nachgedacht</h3><div class="quiz"><p>${esc(q.q)}</p>
+          ${q.o.map((o, i) => `<button class="opt ${qa === undefined ? '' : i === q.a ? 'right' : i === qa ? 'wrong' : ''}" data-act="quiz" data-i="${i}" ${qa === undefined ? '' : 'disabled'}>${esc(o)}</button>`).join('')}
+          ${qa === undefined ? '' : `<p class="note" style="margin-top:8px">${qa === q.a ? 'Richtig. ' : 'Nicht ganz. '}${esc(q.why)}</p>`}</div></div>`;
+    }
+    box.scrollTop = top;
+  }
+
+  /* ---------- Spickzettel ---------- */
+  function renderSpick() {
+    const box = $('dbSpick'), d = decide, res = d.dir && d.kind ? COACH.DECIDE[d.dir + '-' + d.kind] : null;
+    box.innerHTML = `<h2>Spickzettel</h2>
+      <div class="decide"><h3>Welchen Befehl brauche ich?</h3>
+        <fieldset><legend>Was soll der Nano tun?</legend>
+          <label><input type="radio" name="dir" value="out" ${d.dir === 'out' ? 'checked' : ''}>etwas ausgeben (LED, Lautsprecher, Servo)</label>
+          <label><input type="radio" name="dir" value="in" ${d.dir === 'in' ? 'checked' : ''}>etwas einlesen (Taster, Sensor)</label></fieldset>
+        <fieldset><legend>Wie viele Stufen hat das Signal?</legend>
+          <label><input type="radio" name="kind" value="digital" ${d.kind === 'digital' ? 'checked' : ''}>nur zwei: an oder aus (digital)</label>
+          <label><input type="radio" name="kind" value="analog" ${d.kind === 'analog' ? 'checked' : ''}>viele Stufen (analog)</label></fieldset>
+        ${res ? `<div class="result"><strong><code>${esc(res.fn)}</code></strong><span>${esc(res.why)}</span><span class="note">${esc(res.cube)}</span>
+          <pre class="snip">${esc(res.snip)}</pre><button class="btn" data-act="insert" style="align-self:flex-start">In den Editor einfügen</button></div>` : '<p class="note">Wähle oben beide Antworten.</p>'}
+      </div>
+      <h3>Befehle</h3>${COACH.CMDS.map(c => `<div class="cmd"><code>${esc(c[0])}</code><span>${esc(c[1])}</span></div>`).join('')}
+      <h3>Pinbelegung des Cube</h3>
+      <div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%;font-size:13px"><tbody>${COACH.PINS.map(p => `<tr><td style="padding:4px 8px 4px 0;font-family:var(--mono);font-weight:700">${p[0]}</td><td style="padding:4px 8px">${esc(p[1])}</td><td style="padding:4px 0;color:var(--muted)">${esc(p[2])}</td></tr>`).join('')}</tbody></table></div>
+      <h3>Tastenkürzel</h3><p class="note">Strg + Enter lädt das Programm hoch. Die Tab-Taste rückt im Editor ein. Mit Esc und danach Tab verlässt du den Editor wieder.</p>`;
+    box.querySelectorAll('input[type=radio]').forEach(r => r.addEventListener('change', () => { decide[r.name] = r.value; renderSpick(); }));
+  }
+
+  /* ---------- Klicks ---------- */
+  document.addEventListener('click', e => {
+    const b = e.target.closest('[data-act]'); if (!b || !$('drawer').contains(b)) return; const a = b.dataset.act;
+    if (a === 'open') { cur = b.dataset.id; renderLern(); $('dbLern').scrollTop = 0; }
+    else if (a === 'back') { cur = null; renderLern(); }
+    else if (a === 'example') { const x = EXAMPLES.find(v => v.id === b.dataset.id); if (x) IDE.loadCode(x.code, x.title); }
+    else if (a === 'hint') { hintLv[b.dataset.k] = Math.min(3, (hintLv[b.dataset.k] || 0) + 1); renderLern(); }
+    else if (a === 'tick') { const k = b.dataset.k; done.has(k) ? done.delete(k) : done.add(k); save(); renderLern(); }
+    else if (a === 'quiz') { quiz[cur] = Number(b.dataset.i); save(); renderLern(); }
+    else if (a === 'insert') { const r = COACH.DECIDE[decide.dir + '-' + decide.kind]; if (r) { IDE.insert(r.snip); } }
+  });
+  document.addEventListener('keydown', e => { const b = e.target.closest && e.target.closest('[data-act=tick]'); if (b && (e.key === ' ' || e.key === 'Enter')) { e.preventDefault(); b.click(); } });
+
+  /* ---------- Schublade ---------- */
+  function showTab(t) {
+    tabNow = t; const tabs = { lern: ['dtLern', 'dbLern'], spick: ['dtSpick', 'dbSpick'], ask: ['dtAsk', 'dbAsk'] };
+    for (const k in tabs) { const tb = $(tabs[k][0]), pn = $(tabs[k][1]); if (!tb) continue; tb.setAttribute('aria-selected', k === t); pn.hidden = k !== t; }
+    if ($('askbar')) $('askbar').hidden = t !== 'ask';
+    $('btnLern').setAttribute('aria-expanded', open() && t === 'lern'); $('btnSpick').setAttribute('aria-expanded', open() && t === 'spick');
+    if ($('btnAsk')) $('btnAsk').setAttribute('aria-expanded', open() && t === 'ask');
+    if (t === 'lern') renderLern(); else if (t === 'spick') renderSpick();
+  }
+  const open = () => !$('drawer').hidden;
+  function openDrawer(t) { if (open() && tabNow === t) return closeDrawer(); $('drawer').hidden = false; document.body.classList.add('drawer-open'); showTab(t); }
+  function closeDrawer() { $('drawer').hidden = true; document.body.classList.remove('drawer-open'); ['btnLern', 'btnSpick', 'btnAsk'].forEach(i => $(i) && $(i).setAttribute('aria-expanded', 'false')); }
+  $('btnLern').onclick = () => openDrawer('lern'); $('btnSpick').onclick = () => openDrawer('spick'); $('dClose').onclick = closeDrawer;
+  $('dtLern').onclick = () => showTab('lern'); $('dtSpick').onclick = () => showTab('spick'); if ($('dtAsk')) $('dtAsk').onclick = () => showTab('ask'); if ($('btnAsk')) $('btnAsk').onclick = () => openDrawer('ask');
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && open() && $('drawer').contains(document.activeElement)) closeDrawer(); });
+
+  /* ---------- Aufgaben automatisch erkennen ---------- */
+  let lastCheck = 0;
+  CUBEUI.onFrame(t => {
+    if (!S.running || t - lastCheck < 250) return; lastCheck = t; let changed = false;
+    for (const l of LESSONS) l.tasks.forEach((tk, i) => { const k = key(l, i); if (tk.test && !done.has(k)) { let ok = false; try { ok = tk.test(); } catch (e) {}
+      if (ok) { done.add(k); changed = true; CUBE.log('ok', `Aufgabe geschafft: ${tk.t}`); } } });
+    if (changed) { save(); if (open() && tabNow === 'lern') renderLern(); }
+  });
+
+  /* ---------- Tipp-Knopf ---------- */
+  function compileTip(r) {
+    const m = r.msg, z = r.line ? ` Das Programm meldet Zeile ${r.line}.` : '';
+    if (/Semikolon/.test(m)) return 'Jede Anweisung endet mit einem Semikolon ;' + z + ' Schau auch in die Zeile davor.';
+    if (/Klammer|\)|\}/.test(m)) return 'Zähle die Klammern: Zu jedem { gehört ein }, zu jeder runden Klammer ( ein ).' + z + ' Der Editor rückt automatisch ein, daran erkennst du, wo etwas fehlt.';
+    if (/setup|loop/.test(m)) return 'Jedes Arduino-Programm braucht void setup() { } und void loop() { }.';
+    if (/include/.test(m)) return 'Bibliotheken wie Servo, DHT oder Adafruit_NeoPixel musst du ganz oben mit #include einbinden.';
+    return 'Lies die Meldung in der Ausgabe genau.' + z + ' Prüfe dort Schreibweise, Klammern und Semikolon.';
+  }
+  function currentLesson() { return LESSONS.find(l => l.id === cur) || LESSONS.find(l => !lessonDone(l)) || null; }
+  function tipp() {
+    const lc = IDE.lastCompile(); if (lc && !lc.ok) return compileTip(lc);
+    const rt = S.log.filter(l => l.sev === 'error' || l.sev === 'hint'); if (rt.length) return 'Lies zuerst diese Meldung: ' + rt[rt.length - 1].text;
+    const l = currentLesson();
+    if (l) { const i = l.tasks.findIndex((t, j) => !done.has(key(l, j)));
+      if (i >= 0) { const k = key(l, i), lv = Math.min(3, (hintLv[k] || 0) + 1); hintLv[k] = lv; if (open() && tabNow === 'lern') renderLern();
+        return `Lektion „${l.title}“, Aufgabe ${i + 1}: ${l.tasks[i].hints[lv - 1]}` + (lv < 3 ? '  (Klicke noch einmal auf Tipp für mehr Hilfe.)' : ''); } }
+    return 'Beschreibe in einem Satz, was passieren soll. Frage dich dann: Gibt der Nano etwas aus oder liest er etwas ein? Gibt es nur an und aus oder viele Stufen? Der Spickzettel hilft dir bei der Wahl des Befehls.';
+  }
+  function init() { renderLern(); }
+  return { init, tipp, onRun() { if (open() && tabNow === 'lern') renderLern(); }, openDrawer, showTab, state: () => ({ done, cur }) };
+})();
+
+/* boot.js: Start */
+(function () {
+  CUBEUI.init(); IDE.init(); LEARN.init();
+  if (typeof ASK !== 'undefined') ASK.init();
+  try { new Function('return 1')(); } catch (e) { CUBE.log('error', 'Diese Umgebung blockiert das Ausführen von Programmen (Sicherheitsrichtlinie). Öffne die HTML-Datei direkt im Browser.'); }
+  CUBE.log('info', 'Im Editor steht ein Blink-Beispiel. Drücke oben auf „Hochladen“ und schau auf die rote LED. Hilfe findest du rechts oben unter Lernpfad und Spickzettel und mit dem Knopf Tipp.');
+})();
+
+</script>
+</body>
+</html>
